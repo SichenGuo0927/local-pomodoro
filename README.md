@@ -1,0 +1,60 @@
+# 本地番茄钟
+
+极简 macOS 本地番茄钟，当前版本 `0.2.5`。应用使用 Electron 构建，计时逻辑运行在主进程里，所以窗口隐藏、关闭到后台、失焦后都会继续计时。
+
+## 当前能力
+
+- 自定义专注、短休、长休时长。
+- 自定义进入长休前的番茄循环次数。
+- 打开 App 后默认静止，必须手动开始。
+- Menu Bar 常驻入口：
+  - 单击打开菜单，再单击关闭菜单。
+  - 双击、双指按压或右键：开始；运行中则暂停。
+  - 菜单顶部显示当前循环圆环进度。
+- 自动进入下一段：
+  - 专注结束后可自动进入短休或长休。
+  - 短休结束后可自动进入下一段专注。
+  - 长休结束后不会自动开启下一组，等待用户手动开始。
+- 声音提醒：
+  - 进入休息播放 `Glass + Ping + Glass`。
+  - 进入专注播放 `Hero + Ping`。
+- 短休开始时弹出独立提醒窗口，持续提醒远眺窗外，进入下一段专注后消失。
+- 长休开始时弹出独立提醒窗口，提醒喝水走动；长休结束后停在下一轮专注。
+- 主页面保持精简，设置区默认隐藏，通过右上角齿轮打开。
+
+## 运行
+
+```bash
+pnpm install
+pnpm start
+```
+
+## 打包 mac 安装包
+
+```bash
+pnpm run package:mac
+```
+
+打包完成后，安装包会出现在 `dist/` 目录。`dist/` 是本地生成物，不纳入 Git；当前本机保留最新版：
+
+```text
+dist/本地番茄钟-0.2.5.dmg
+```
+
+## 项目结构
+
+```text
+src/main.js              Electron 主进程、计时状态、Menu Bar、通知、声音
+src/preload.js           安全暴露给页面的 IPC API
+src/renderer/            主窗口 UI
+src/notice/              独立提醒窗口 UI
+package.json             Electron 启动和打包脚本
+pnpm-workspace.yaml      pnpm build script 审批配置
+pnpm-lock.yaml           依赖锁文件
+```
+
+## 注意事项
+
+- macOS 安装包未签名，首次打开可能需要右键打开。
+- Git 仓库只保存源码、文档和锁文件；`node_modules/`、`.pnpm-store/`、`dist/` 都是忽略的本地生成物。
+- 如果其他 agent 接手，请先读 [HANDOFF.md](./HANDOFF.md)。
