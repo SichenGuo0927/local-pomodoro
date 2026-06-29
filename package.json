@@ -4,6 +4,16 @@
   "description": "Minimal local pomodoro timer for macOS.",
   "main": "src/main.js",
   "private": true,
+  "author": "Sichen Guo",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SichenGuo0927/local-pomodoro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SichenGuo0927/local-pomodoro/issues"
+  },
+  "homepage": "https://github.com/SichenGuo0927/local-pomodoro#readme",
   "scripts": {
     "start": "electron .",
     "package:mac": "electron-builder --mac dmg --publish=never"
