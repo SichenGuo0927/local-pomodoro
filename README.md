@@ -26,7 +26,25 @@
   - 长休自然结束后主窗口会弹出，方便用户决定是否开始下一轮。
 - 主窗口设置通过右上角齿轮以独立弹窗打开，不挤压计时器主界面。
 
-## 环境要求
+## 快速安装
+
+推荐直接安装打包版。复制下面一行命令到终端执行即可：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/SichenGuo0927/local-pomodoro/main/install.sh | bash
+```
+
+这条命令会下载 GitHub Release 中的 DMG，挂载安装包，并把 `本地番茄钟.app` 安装到 `/Applications`。如果 `/Applications` 需要管理员权限，脚本会请求 `sudo`。
+
+也可以手动下载打包版本：
+
+[下载 v0.2.6 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/tag/v0.2.6)
+
+安装包当前未签名，首次打开时 macOS 可能需要右键打开，或在系统设置中允许打开。
+
+## 从源码运行
+
+开发或本地调试需要：
 
 - macOS
 - Node.js `22.12+`
@@ -37,8 +55,6 @@
 ```bash
 brew install node pnpm
 ```
-
-## 安装
 
 从 GitHub 克隆并安装依赖：
 
@@ -62,19 +78,6 @@ pnpm run package:mac
 
 构建产物会输出到 `dist/`。该目录是本地生成物，不纳入 Git。
 
-## 命令行安装 App
-
-如果已经生成 `dist/本地番茄钟-0.2.6.dmg`，可以用下面的命令把 App 安装到 `/Applications`：
-
-```bash
-DMG="dist/本地番茄钟-0.2.6.dmg"
-MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$DMG" | awk -F'\t' '/\/Volumes\// {print $NF; exit}')"
-cp -R "$MOUNT_POINT/本地番茄钟.app" /Applications/
-hdiutil detach "$MOUNT_POINT"
-```
-
-安装包当前未签名，首次打开时 macOS 可能需要右键打开，或在系统设置中允许打开。
-
 ## 使用说明
 
 1. 打开 App 后点击 `开始` 启动当前专注阶段。
@@ -90,6 +93,7 @@ src/preload.js           安全暴露给页面的 IPC API
 src/renderer/            主窗口 UI
 src/notice/              独立休息提醒窗口 UI
 package.json             Electron 启动、打包脚本和构建配置
+install.sh               一键下载安装脚本
 pnpm-lock.yaml           pnpm 依赖锁文件
 pnpm-workspace.yaml      pnpm workspace 配置
 ```
@@ -97,6 +101,7 @@ pnpm-workspace.yaml      pnpm workspace 配置
 ## 常用命令
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/SichenGuo0927/local-pomodoro/main/install.sh | bash
 pnpm install
 pnpm start
 pnpm run package:mac

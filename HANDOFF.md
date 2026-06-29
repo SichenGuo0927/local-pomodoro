@@ -8,6 +8,7 @@
 - Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 - Public-facing documentation is in `README.md`; version history is in `CHANGELOG.md`; this file is for handoff notes only.
+- End-user install path is the one-line `install.sh` command in `README.md`; it downloads the `v0.2.6` GitHub Release DMG.
 
 ## User-Approved Behavior
 
@@ -47,6 +48,8 @@
   - GitHub-facing project overview, install commands, run/build instructions, and user notes.
 - `CHANGELOG.md`
   - Version history and verification notes.
+- `install.sh`
+  - One-line installer target. Downloads the release DMG, mounts it, and copies the app bundle into `/Applications`.
 - `src/main.js`
   - Owns all timer state.
   - Builds the Menu Bar tray.
