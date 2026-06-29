@@ -5,7 +5,7 @@
 - Product: minimal macOS Pomodoro timer.
 - Current app version: `0.2.6`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
-- Current branch: `codex/settings-longbreak-popup`.
+- Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 
 ## User-Approved Behavior
@@ -32,6 +32,13 @@
   - Stops at the next focus session.
   - Does not auto-start the next Pomodoro cycle.
   - Brings the main app window to the front so the user can choose whether to start the next cycle.
+
+## 0.2.6 Upgrade Notes
+
+- The settings entry changed from an inline slide-down panel to a centered modal dialog, so opening settings no longer changes the main timer layout.
+- Closing the settings dialog without saving discards draft values and restores the currently saved settings; saving persists the values and closes the dialog.
+- Natural long-break completion now stops at the next focus session and brings the main app window forward so the user can choose whether to start another cycle.
+- The temporary feature branch `codex/settings-longbreak-popup` was merged into the renamed primary branch `main`.
 
 ## Important Files
 
@@ -105,5 +112,5 @@ git config http.version HTTP/1.1
 If the network is healthy, future pushes should be:
 
 ```bash
-git push origin master
+git push origin main
 ```
