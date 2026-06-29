@@ -5,7 +5,7 @@
 - Product: minimal macOS Pomodoro timer.
 - Current app version: `0.2.6`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
-- Current branch: `master`.
+- Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 
 ## User-Approved Behavior
@@ -33,6 +33,13 @@
   - Does not auto-start the next Pomodoro cycle.
   - Brings the main app window to the front so the user can choose whether to start the next cycle.
 
+## 0.2.6 Upgrade Notes
+
+- The settings entry changed from an inline slide-down panel to a centered modal dialog, so opening settings no longer changes the main timer layout.
+- Closing the settings dialog without saving discards draft values and restores the currently saved settings; saving persists the values and closes the dialog.
+- Natural long-break completion now stops at the next focus session and brings the main app window forward so the user can choose whether to start another cycle.
+- The temporary feature branch `codex/settings-longbreak-popup` was merged into the renamed primary branch `main`.
+
 ## Important Files
 
 - `src/main.js`
@@ -43,7 +50,7 @@
   - Persists settings to Electron `userData/settings.json`.
 - `src/renderer/`
   - Main app window.
-  - Settings panel is hidden by default and toggled by the gear button.
+  - Settings dialog is hidden by default and opened by the gear button.
 - `src/notice/`
   - Independent break reminder window.
   - Receives the same timer state over IPC as the main window.
@@ -60,11 +67,13 @@ pnpm run package:mac
 hdiutil imageinfo dist/本地番茄钟-0.2.6.dmg
 ```
 
-Playwright/Electron smoke checks were also run for:
+Packaging produced `dist/本地番茄钟-0.2.6.dmg`; the `electron-builder` parent process did not exit after the artifact appeared, so it was cancelled after `hdiutil imageinfo` confirmed the DMG was valid.
+
+Electron/CDP smoke checks were also run for:
 
 - App opens at `20:00` with the start button.
-- Settings panel is hidden by default and opens from the gear button.
-- Skipping from focus to short break creates a second independent notice window.
+- Settings dialog is hidden by default, opens as a centered modal from the gear button, discards unsaved edits on close, and persists saved edits.
+- The long-break completion path stops at the next focus session and brings the main app window to the front.
 
 ## Generated Files And Cleanup
 
@@ -103,5 +112,5 @@ git config http.version HTTP/1.1
 If the network is healthy, future pushes should be:
 
 ```bash
-git push origin master
+git push origin main
 ```
