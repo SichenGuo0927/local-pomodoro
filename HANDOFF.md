@@ -101,8 +101,9 @@ https://github.com/SichenGuo0927/local-pomodoro
 Notes:
 
 - `origin` is configured as `https://github.com/SichenGuo0927/local-pomodoro.git`.
+- GitHub default branch is `main`; the old remote `master` ref was removed after the rename.
 - Direct `git push` hit intermittent GitHub HTTPS connectivity issues on this machine.
-- The remote was populated through GitHub's REST Git Database API using `gh api`.
+- The remote was populated and updated through GitHub's REST Git Database API using `gh api` when direct Git HTTPS stalled.
 - If future `git push` fails with HTTP/2 errors, keep this local setting:
 
 ```bash
