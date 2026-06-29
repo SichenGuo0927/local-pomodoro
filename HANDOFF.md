@@ -7,6 +7,7 @@
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
 - Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
+- Public-facing documentation is in `README.md`; version history is in `CHANGELOG.md`; this file is for handoff notes only.
 
 ## User-Approved Behavior
 
@@ -42,6 +43,10 @@
 
 ## Important Files
 
+- `README.md`
+  - GitHub-facing project overview, install commands, run/build instructions, and user notes.
+- `CHANGELOG.md`
+  - Version history and verification notes.
 - `src/main.js`
   - Owns all timer state.
   - Builds the Menu Bar tray.
