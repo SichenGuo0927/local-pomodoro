@@ -5,8 +5,8 @@
 - Product: minimal macOS Pomodoro timer.
 - Current app version: `0.2.5`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
-- Current branch: repository is still on initial `master` unless changed after this handoff.
-- No GitHub remote was configured at handoff time.
+- Current branch: `master`.
+- GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 
 ## User-Approved Behavior
 
@@ -82,22 +82,25 @@ Ignored local generated directories remain present on disk but are not tracked:
 
 ## GitHub Handoff
 
-At handoff time, `gh` was installed but not authenticated:
+The repository has been created and uploaded:
 
 ```text
-You are not logged into any GitHub hosts.
+https://github.com/SichenGuo0927/local-pomodoro
 ```
 
-There was no Git remote configured. To push this project later:
+Notes:
+
+- `origin` is configured as `https://github.com/SichenGuo0927/local-pomodoro.git`.
+- Direct `git push` hit intermittent GitHub HTTPS connectivity issues on this machine.
+- The remote was populated through GitHub's REST Git Database API using `gh api`.
+- If future `git push` fails with HTTP/2 errors, keep this local setting:
 
 ```bash
-gh auth login
-gh repo create local-pomodoro --private --source . --remote origin --push
+git config http.version HTTP/1.1
 ```
 
-If the repository already exists, add the remote and push:
+If the network is healthy, future pushes should be:
 
 ```bash
-git remote add origin <repo-url>
-git push -u origin master
+git push origin master
 ```
