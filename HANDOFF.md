@@ -5,7 +5,7 @@
 - Product: minimal macOS Pomodoro timer.
 - Current app version: `0.2.6`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
-- Current branch: `master`.
+- Current branch: `codex/settings-longbreak-popup`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 
 ## User-Approved Behavior
@@ -43,7 +43,7 @@
   - Persists settings to Electron `userData/settings.json`.
 - `src/renderer/`
   - Main app window.
-  - Settings panel is hidden by default and toggled by the gear button.
+  - Settings dialog is hidden by default and opened by the gear button.
 - `src/notice/`
   - Independent break reminder window.
   - Receives the same timer state over IPC as the main window.
@@ -60,11 +60,13 @@ pnpm run package:mac
 hdiutil imageinfo dist/本地番茄钟-0.2.6.dmg
 ```
 
-Playwright/Electron smoke checks were also run for:
+Packaging produced `dist/本地番茄钟-0.2.6.dmg`; the `electron-builder` parent process did not exit after the artifact appeared, so it was cancelled after `hdiutil imageinfo` confirmed the DMG was valid.
+
+Electron/CDP smoke checks were also run for:
 
 - App opens at `20:00` with the start button.
-- Settings panel is hidden by default and opens from the gear button.
-- Skipping from focus to short break creates a second independent notice window.
+- Settings dialog is hidden by default, opens as a centered modal from the gear button, discards unsaved edits on close, and persists saved edits.
+- The long-break completion path stops at the next focus session and brings the main app window to the front.
 
 ## Generated Files And Cleanup
 
