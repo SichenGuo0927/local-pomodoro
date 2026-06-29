@@ -1,0 +1,356 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f4ee;
+  --panel: #fffdf8;
+  --text: #1f2933;
+  --muted: #697586;
+  --line: #ddd6cc;
+  --accent: #c2410c;
+  --accent-dark: #9a3412;
+  --rest: #0f766e;
+  --long-rest: #285a9f;
+  --shadow: 0 14px 36px rgba(31, 41, 51, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111827;
+    --panel: #172033;
+    --text: #f8fafc;
+    --muted: #aab6c5;
+    --line: #2c3648;
+    --accent: #fb923c;
+    --accent-dark: #f97316;
+    --rest: #2dd4bf;
+    --long-rest: #93c5fd;
+    --shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(100%, 460px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.phase-label {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.cycle-pill {
+  flex: 0 0 auto;
+  min-width: 54px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+}
+
+.settings-toggle {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 84%, transparent);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.settings-toggle:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--line) 32%, transparent);
+}
+
+.attention-banner {
+  border: 1px solid color-mix(in srgb, var(--rest) 52%, var(--line));
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  background: color-mix(in srgb, var(--rest) 13%, var(--panel));
+}
+
+.attention-banner[hidden] {
+  display: none;
+}
+
+.attention-banner strong {
+  font-size: 15px;
+}
+
+.attention-banner span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.attention-banner[data-notice="longBreak"] {
+  border-color: color-mix(in srgb, var(--long-rest) 52%, var(--line));
+  background: color-mix(in srgb, var(--long-rest) 13%, var(--panel));
+}
+
+.timer-panel,
+.settings-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.timer-panel {
+  padding: 28px 22px 22px;
+}
+
+.timer-ring {
+  width: min(72vw, 270px);
+  aspect-ratio: 1;
+  margin: 0 auto 18px;
+  border: 10px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+}
+
+.time-display {
+  font-size: clamp(46px, 15vw, 72px);
+  line-height: 1;
+  font-weight: 760;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.next-label {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 58%, transparent);
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms linear, background-color 180ms ease;
+}
+
+.controls {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 46px 46px;
+  gap: 10px;
+}
+
+.primary-button,
+.icon-button,
+.save-button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-button {
+  min-height: 46px;
+  padding: 0 18px;
+  color: #fff7ed;
+  background: var(--accent);
+  font-weight: 720;
+}
+
+.primary-button:hover {
+  background: var(--accent-dark);
+}
+
+.icon-button {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: transparent;
+  font-size: 20px;
+}
+
+.icon-button:hover {
+  background: color-mix(in srgb, var(--line) 38%, transparent);
+}
+
+.settings-panel {
+  padding: 18px;
+}
+
+.settings-panel[hidden] {
+  display: none;
+}
+
+.settings-form {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-form input[type="number"] {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+  font-size: 15px;
+}
+
+.settings-form input:focus-visible,
+.primary-button:focus-visible,
+.icon-button:focus-visible,
+.save-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.toggles {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  padding-top: 2px;
+}
+
+.toggle-row {
+  min-height: 26px;
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 9px !important;
+  color: var(--text) !important;
+}
+
+.toggle-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+}
+
+.save-button {
+  grid-column: 1 / -1;
+  min-height: 42px;
+  color: #fff7ed;
+  background: #334155;
+  font-weight: 700;
+}
+
+.save-button:hover {
+  background: #1f2937;
+}
+
+body[data-phase="shortBreak"] .timer-ring {
+  border-color: color-mix(in srgb, var(--rest) 28%, transparent);
+}
+
+body[data-phase="shortBreak"] .progress-bar,
+body[data-phase="shortBreak"] .primary-button {
+  background: var(--rest);
+}
+
+body[data-phase="longBreak"] .timer-ring {
+  border-color: color-mix(in srgb, var(--long-rest) 28%, transparent);
+}
+
+body[data-phase="longBreak"] .progress-bar,
+body[data-phase="longBreak"] .primary-button {
+  background: var(--long-rest);
+}
+
+@media (max-width: 430px) {
+  .app-shell {
+    padding: 22px 16px 18px;
+  }
+
+  .settings-form,
+  .toggles {
+    grid-template-columns: 1fr;
+  }
+
+  .timer-ring {
+    width: min(78vw, 248px);
+  }
+}

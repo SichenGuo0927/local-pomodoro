@@ -1,0 +1,33 @@
+{
+  "name": "local-pomodoro",
+  "version": "0.2.5",
+  "description": "Minimal local pomodoro timer for macOS.",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "package:mac": "electron-builder --mac dmg --publish=never"
+  },
+  "build": {
+    "appId": "com.local.pomodoro",
+    "productName": "本地番茄钟",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": [
+        "dmg"
+      ]
+    },
+    "dmg": {
+      "artifactName": "本地番茄钟-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "42.5.0",
+    "electron-builder": "26.15.3"
+  }
+}
