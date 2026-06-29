@@ -15,7 +15,7 @@
         </div>
         <div class="top-actions">
           <div id="cyclePill" class="cycle-pill">1/4</div>
-          <button id="settingsToggleButton" class="settings-toggle" type="button" title="设置">⚙</button>
+          <button id="settingsToggleButton" class="settings-toggle" type="button" title="设置" aria-haspopup="dialog" aria-expanded="false">⚙</button>
         </div>
       </header>
 
@@ -39,44 +39,49 @@
         </div>
       </section>
 
-      <section id="settingsPanel" class="settings-panel" aria-label="设置" hidden>
-        <h2>设置</h2>
-        <form id="settingsForm" class="settings-form">
-          <label>
-            <span>专注时长</span>
-            <input id="focusMinutes" name="focusMinutes" type="number" min="1" max="180" step="1" inputmode="numeric" />
-          </label>
-          <label>
-            <span>短休时长</span>
-            <input id="shortBreakMinutes" name="shortBreakMinutes" type="number" min="1" max="60" step="1" inputmode="numeric" />
-          </label>
-          <label>
-            <span>长休时长</span>
-            <input id="longBreakMinutes" name="longBreakMinutes" type="number" min="1" max="120" step="1" inputmode="numeric" />
-          </label>
-          <label>
-            <span>长休循环</span>
-            <input id="sessionsBeforeLongBreak" name="sessionsBeforeLongBreak" type="number" min="1" max="12" step="1" inputmode="numeric" />
-          </label>
+      <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+        <section id="settingsPanel" class="settings-panel" aria-label="设置">
+          <header class="settings-header">
+            <h2 id="settingsTitle">设置</h2>
+            <button id="settingsCloseButton" class="settings-close" type="button" title="关闭设置">×</button>
+          </header>
+          <form id="settingsForm" class="settings-form">
+            <label>
+              <span>专注时长</span>
+              <input id="focusMinutes" name="focusMinutes" type="number" min="1" max="180" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>短休时长</span>
+              <input id="shortBreakMinutes" name="shortBreakMinutes" type="number" min="1" max="60" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>长休时长</span>
+              <input id="longBreakMinutes" name="longBreakMinutes" type="number" min="1" max="120" step="1" inputmode="numeric" />
+            </label>
+            <label>
+              <span>长休循环</span>
+              <input id="sessionsBeforeLongBreak" name="sessionsBeforeLongBreak" type="number" min="1" max="12" step="1" inputmode="numeric" />
+            </label>
 
-          <div class="toggles">
-            <label class="toggle-row">
-              <input id="autoStartNext" name="autoStartNext" type="checkbox" />
-              <span>自动进入下一段</span>
-            </label>
-            <label class="toggle-row">
-              <input id="soundEnabled" name="soundEnabled" type="checkbox" />
-              <span>声音提醒</span>
-            </label>
-            <label class="toggle-row">
-              <input id="notificationsEnabled" name="notificationsEnabled" type="checkbox" />
-              <span>系统通知</span>
-            </label>
-          </div>
+            <div class="toggles">
+              <label class="toggle-row">
+                <input id="autoStartNext" name="autoStartNext" type="checkbox" />
+                <span>自动进入下一段</span>
+              </label>
+              <label class="toggle-row">
+                <input id="soundEnabled" name="soundEnabled" type="checkbox" />
+                <span>声音提醒</span>
+              </label>
+              <label class="toggle-row">
+                <input id="notificationsEnabled" name="notificationsEnabled" type="checkbox" />
+                <span>系统通知</span>
+              </label>
+            </div>
 
-          <button class="save-button" type="submit">保存设置</button>
-        </form>
-      </section>
+            <button class="save-button" type="submit">保存设置</button>
+          </form>
+        </section>
+      </dialog>
     </main>
     <script src="./app.js"></script>
   </body>

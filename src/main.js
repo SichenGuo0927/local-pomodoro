@@ -288,14 +288,26 @@ function toggleTimerFromTrayShortcut() {
   }
 }
 
-function showMainWindow() {
+function showMainWindow(options = {}) {
+  const { stealFocus = false } = options;
+
   if (!mainWindow || mainWindow.isDestroyed()) {
     createWindow();
     return;
   }
 
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
   mainWindow.show();
+  if (typeof mainWindow.moveTop === "function") {
+    mainWindow.moveTop();
+  }
   mainWindow.focus();
+
+  if (stealFocus && process.platform === "darwin") {
+    app.focus({ steal: true });
+  }
 }
 
 function startTimer() {
@@ -377,6 +389,10 @@ function completePhase({ manual }) {
 
   if (settings.autoStartNext && completedPhase !== "longBreak") {
     startTimer();
+  }
+
+  if (!manual && completedPhase === "longBreak") {
+    showMainWindow({ stealFocus: true });
   }
 
   return getSnapshot();

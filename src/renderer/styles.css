@@ -246,12 +246,56 @@ h2 {
   background: color-mix(in srgb, var(--line) 38%, transparent);
 }
 
-.settings-panel {
-  padding: 18px;
+.settings-dialog {
+  width: min(calc(100vw - 32px), 420px);
+  max-height: min(calc(100vh - 48px), 560px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  overflow: visible;
 }
 
-.settings-panel[hidden] {
+.settings-dialog:not([open]) {
   display: none;
+}
+
+.settings-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(4px);
+}
+
+.settings-panel {
+  padding: 18px;
+  max-height: inherit;
+  overflow: auto;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.settings-close:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--line) 38%, transparent);
 }
 
 .settings-form {
@@ -280,8 +324,10 @@ h2 {
 }
 
 .settings-form input:focus-visible,
+.settings-toggle:focus-visible,
 .primary-button:focus-visible,
 .icon-button:focus-visible,
+.settings-close:focus-visible,
 .save-button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
   outline-offset: 2px;

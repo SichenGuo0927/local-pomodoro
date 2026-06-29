@@ -3,7 +3,7 @@
 ## Status
 
 - Product: minimal macOS Pomodoro timer.
-- Current app version: `0.2.5`.
+- Current app version: `0.2.6`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
 - Current branch: `master`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
@@ -18,7 +18,7 @@
   - Single click again closes the menu.
   - Double click, two-finger press, or right click toggles start/pause.
 - Menu Bar menu includes a circular progress icon for the current cycle.
-- Main window should stay visually close to the user's screenshot: compact timer UI, alert banner when relevant, settings hidden behind the gear button.
+- Main window should stay visually close to the user's screenshot: compact timer UI, alert banner when relevant, settings hidden behind the gear button and opened as a modal dialog.
 - Short break starts:
   - Plays the rest sound sequence.
   - Opens a separate notice window.
@@ -31,6 +31,7 @@
   - Plays the focus sound sequence.
   - Stops at the next focus session.
   - Does not auto-start the next Pomodoro cycle.
+  - Brings the main app window to the front so the user can choose whether to start the next cycle.
 
 ## Important Files
 
@@ -56,7 +57,7 @@ node --check src/main.js
 node --check src/renderer/app.js
 node --check src/notice/app.js
 pnpm run package:mac
-hdiutil imageinfo dist/本地番茄钟-0.2.5.dmg
+hdiutil imageinfo dist/本地番茄钟-0.2.6.dmg
 ```
 
 Playwright/Electron smoke checks were also run for:
@@ -72,7 +73,7 @@ The workspace was cleaned before handoff:
 - Removed old `dist/本地番茄钟-0.2.0` through `0.2.4` DMGs and blockmaps.
 - Removed `dist/builder-debug.yml`.
 - Removed root `.DS_Store`.
-- Kept only the latest local installer: `dist/本地番茄钟-0.2.5.dmg`.
+- Latest local installer after this upgrade: `dist/本地番茄钟-0.2.6.dmg`.
 
 Ignored local generated directories remain present on disk but are not tracked:
 

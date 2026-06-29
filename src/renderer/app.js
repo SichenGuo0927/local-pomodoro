@@ -41,7 +41,9 @@ const elements = {
   attentionTitle: document.querySelector("#attentionTitle"),
   attentionBody: document.querySelector("#attentionBody"),
   settingsToggleButton: document.querySelector("#settingsToggleButton"),
+  settingsDialog: document.querySelector("#settingsDialog"),
   settingsPanel: document.querySelector("#settingsPanel"),
+  settingsCloseButton: document.querySelector("#settingsCloseButton"),
   settingsForm: document.querySelector("#settingsForm"),
   focusMinutes: document.querySelector("#focusMinutes"),
   shortBreakMinutes: document.querySelector("#shortBreakMinutes"),
@@ -81,15 +83,55 @@ function bindEvents() {
     render(snapshot);
   });
 
-  elements.settingsToggleButton.addEventListener("click", () => {
-    elements.settingsPanel.hidden = !elements.settingsPanel.hidden;
+  elements.settingsToggleButton.addEventListener("click", openSettingsDialog);
+
+  elements.settingsCloseButton.addEventListener("click", closeSettingsDialog);
+
+  elements.settingsDialog.addEventListener("click", event => {
+    if (event.target === elements.settingsDialog) {
+      closeSettingsDialog();
+    }
+  });
+
+  elements.settingsDialog.addEventListener("close", () => {
+    elements.settingsToggleButton.setAttribute("aria-expanded", "false");
+    renderSettings(snapshot.settings);
   });
 
   elements.settingsForm.addEventListener("submit", async event => {
     event.preventDefault();
     snapshot = await bridge.updateSettings(readSettingsForm());
     render(snapshot);
+    closeSettingsDialog();
   });
+}
+
+function openSettingsDialog() {
+  if (elements.settingsDialog.open) {
+    return;
+  }
+
+  renderSettings(snapshot.settings);
+  elements.settingsToggleButton.setAttribute("aria-expanded", "true");
+
+  if (typeof elements.settingsDialog.showModal === "function") {
+    elements.settingsDialog.showModal();
+  } else {
+    elements.settingsDialog.setAttribute("open", "");
+  }
+
+  elements.focusMinutes.focus();
+}
+
+function closeSettingsDialog() {
+  if (elements.settingsDialog.open && typeof elements.settingsDialog.close === "function") {
+    elements.settingsDialog.close();
+    return;
+  }
+
+  elements.settingsDialog.removeAttribute("open");
+  elements.settingsToggleButton.setAttribute("aria-expanded", "false");
+  renderSettings(snapshot.settings);
 }
 
 function readSettingsForm() {
@@ -145,7 +187,12 @@ function render(nextSnapshot) {
   elements.progressBar.style.width = `${Math.min(Math.max(progress, 0), 100)}%`;
   elements.startPauseButton.textContent = nextSnapshot.running ? "⏸ 暂停" : "▶ 开始";
   renderNotice(nextSnapshot.notice);
+  if (!elements.settingsDialog.open) {
+    renderSettings(settings);
+  }
+}
 
+function renderSettings(settings) {
   elements.focusMinutes.value = settings.focusMinutes;
   elements.shortBreakMinutes.value = settings.shortBreakMinutes;
   elements.longBreakMinutes.value = settings.longBreakMinutes;
