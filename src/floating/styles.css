@@ -1,0 +1,89 @@
+:root {
+  color-scheme: light dark;
+  --bg: rgba(255, 253, 248, 0.94);
+  --text: #1f2933;
+  --muted: #697586;
+  --line: rgba(221, 214, 204, 0.92);
+  --accent: #c2410c;
+  --rest: #0f766e;
+  --long-rest: #285a9f;
+  --shadow: 0 12px 30px rgba(31, 41, 51, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: rgba(23, 32, 51, 0.94);
+    --text: #f8fafc;
+    --muted: #aab6c5;
+    --line: rgba(44, 54, 72, 0.92);
+    --accent: #fb923c;
+    --rest: #2dd4bf;
+    --long-rest: #93c5fd;
+    --shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+.floating-timer {
+  width: 100%;
+  height: 100%;
+  padding: 13px 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.phase-label,
+.time-display {
+  margin: 0;
+}
+
+.phase-label {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.time-display {
+  color: var(--accent);
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 760;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-phase="shortBreak"] .time-display {
+  color: var(--rest);
+}
+
+body[data-phase="longBreak"] .time-display {
+  color: var(--long-rest);
+}
+
+.floating-timer:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 44%, transparent);
+  outline-offset: -5px;
+}
