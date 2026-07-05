@@ -149,7 +149,7 @@ function readSettingsForm() {
 function normalizeSettings(raw) {
   return {
     focusMinutes: clampInteger(raw.focusMinutes, 1, 180, DEFAULT_SETTINGS.focusMinutes),
-    shortBreakMinutes: clampInteger(raw.shortBreakMinutes, 1, 60, DEFAULT_SETTINGS.shortBreakMinutes),
+    shortBreakMinutes: clampDecimalMinutes(raw.shortBreakMinutes, 1 / 60, 60, DEFAULT_SETTINGS.shortBreakMinutes),
     longBreakMinutes: clampInteger(raw.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
     autoStartNext: Boolean(raw.autoStartNext),
@@ -161,6 +161,14 @@ function normalizeSettings(raw) {
 function clampInteger(value, min, max, fallback) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(Math.max(parsed, min), max);
+}
+
+function clampDecimalMinutes(value, min, max, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
     return fallback;
   }
   return Math.min(Math.max(parsed, min), max);
