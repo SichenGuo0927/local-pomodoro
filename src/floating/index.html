@@ -7,9 +7,11 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main id="floatingTimer" class="floating-timer" role="button" tabindex="0" aria-label="打开本地番茄钟">
-      <p id="phaseLabel" class="phase-label">专注</p>
-      <div id="timeDisplay" class="time-display">20:00</div>
+    <main id="floatingTimer" class="floating-timer" aria-label="本地番茄钟浮动倒计时">
+      <button id="openButton" class="tomato-face" type="button" title="打开本地番茄钟" aria-label="打开本地番茄钟">
+        <span id="phaseLabel" class="phase-label">专注</span>
+        <span id="timeDisplay" class="time-display">20:00</span>
+      </button>
     </main>
     <script src="./app.js"></script>
   </body>

@@ -6,19 +6,12 @@ const PHASES = {
 
 const bridge = window.pomodoroApp;
 const elements = {
-  floatingTimer: document.querySelector("#floatingTimer"),
+  openButton: document.querySelector("#openButton"),
   phaseLabel: document.querySelector("#phaseLabel"),
   timeDisplay: document.querySelector("#timeDisplay")
 };
 
-elements.floatingTimer.addEventListener("click", showMainWindow);
-elements.floatingTimer.addEventListener("dblclick", showMainWindow);
-elements.floatingTimer.addEventListener("keydown", event => {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    showMainWindow();
-  }
-});
+elements.openButton.addEventListener("click", showMainWindow);
 
 bridge.onState(render);
 bridge.getState().then(render);

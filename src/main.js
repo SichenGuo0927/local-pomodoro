@@ -66,9 +66,10 @@ const LONG_BREAK_NOTICE = {
   body: "喝水，站起来走动一下。"
 };
 const COUNTDOWN_DISPLAY_MODES = new Set(["menuBar", "floatingWindow"]);
+const BREAK_PHASES = new Set(["shortBreak", "longBreak"]);
 const FLOATING_WINDOW_SIZE = {
-  width: 190,
-  height: 92
+  width: 154,
+  height: 138
 };
 const SYSTEM_SOUND_DIR = "/System/Library/Sounds";
 const SOUND_SEQUENCES = {
@@ -597,7 +598,17 @@ function syncFloatingCountdownWindow(snapshot = getSnapshot()) {
 }
 
 function shouldShowFloatingCountdownWindow(snapshot) {
-  return settings.countdownDisplayMode === "floatingWindow" && snapshot.running;
+  return settings.countdownDisplayMode === "floatingWindow"
+    && snapshot.running
+    && !hasBreakNotice(snapshot);
+}
+
+function hasBreakNotice(snapshot) {
+  if (!BREAK_PHASES.has(snapshot.phase)) {
+    return false;
+  }
+
+  return Boolean(snapshot.notice) || Boolean(noticeWindow && !noticeWindow.isDestroyed());
 }
 
 function createFloatingCountdownWindow() {
@@ -665,7 +676,6 @@ function showFloatingCountdownWindow() {
     return;
   }
 
-  positionFloatingCountdownWindow();
   floatingWindow.setAlwaysOnTop(true, "floating");
   floatingWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   if (floatingWindow.webContents.isLoading()) {
