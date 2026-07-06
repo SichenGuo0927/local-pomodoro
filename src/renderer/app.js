@@ -24,6 +24,11 @@ let snapshot = {
   completedFocusInCycle: 0,
   nextPhaseLabel: "短休",
   focusNumber: 1,
+  todayStats: {
+    date: "",
+    completedFocusSessions: 0,
+    completedFocusMinutes: 0
+  },
   notice: null,
   settings: { ...DEFAULT_SETTINGS }
 };
@@ -34,6 +39,8 @@ const elements = {
   timeDisplay: document.querySelector("#timeDisplay"),
   nextLabel: document.querySelector("#nextLabel"),
   progressBar: document.querySelector("#progressBar"),
+  todayPomodoros: document.querySelector("#todayPomodoros"),
+  todayFocusMinutes: document.querySelector("#todayFocusMinutes"),
   startPauseButton: document.querySelector("#startPauseButton"),
   resetButton: document.querySelector("#resetButton"),
   skipButton: document.querySelector("#skipButton"),
@@ -194,10 +201,24 @@ function render(nextSnapshot) {
   elements.nextLabel.textContent = `下一段：${nextSnapshot.nextPhaseLabel}`;
   elements.progressBar.style.width = `${Math.min(Math.max(progress, 0), 100)}%`;
   elements.startPauseButton.textContent = nextSnapshot.running ? "⏸ 暂停" : "▶ 开始";
+  renderTodayStats(nextSnapshot.todayStats);
   renderNotice(nextSnapshot.notice);
   if (!elements.settingsDialog.open) {
     renderSettings(settings);
   }
+}
+
+function renderTodayStats(todayStats = {}) {
+  elements.todayPomodoros.textContent = String(readStatNumber(todayStats.completedFocusSessions));
+  elements.todayFocusMinutes.textContent = String(readStatNumber(todayStats.completedFocusMinutes));
+}
+
+function readStatNumber(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
 }
 
 function renderSettings(settings) {

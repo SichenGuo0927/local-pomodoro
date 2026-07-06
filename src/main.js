@@ -87,6 +87,7 @@ let trayMenuOpen = false;
 let activeTrayMenu = null;
 let pendingTrayClickTimer = null;
 let lastTrayMenuClosedAt = 0;
+let dailyStats = {};
 
 const state = {
   phase: "focus",
@@ -372,6 +373,9 @@ function completePhase({ manual }) {
   state.remainingSeconds = 0;
   state.endsAt = null;
   stopPowerSaveBlocker();
+  if (!manual && completedPhase === "focus") {
+    recordCompletedFocusSession(state.totalSeconds);
+  }
   broadcastState();
 
   advancePhase(completedPhase);
@@ -674,6 +678,7 @@ function getSnapshot() {
     completedFocusInCycle: state.completedFocusInCycle,
     nextPhaseLabel: getNextPhaseLabel(),
     focusNumber: Math.min(state.completedFocusInCycle + 1, settings.sessionsBeforeLongBreak),
+    todayStats: getTodayStats(),
     notice,
     settings
   };
@@ -733,6 +738,10 @@ function getSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+function getDailyStatsPath() {
+  return path.join(app.getPath("userData"), "daily-stats.json");
+}
+
 function loadSettings() {
   try {
     const saved = JSON.parse(fs.readFileSync(getSettingsPath(), "utf8"));
@@ -743,8 +752,89 @@ function loadSettings() {
 }
 
 function saveSettings(nextSettings) {
-  fs.mkdirSync(app.getPath("userData"), { recursive: true });
+  ensureUserDataDir();
   fs.writeFileSync(getSettingsPath(), JSON.stringify(nextSettings, null, 2));
+}
+
+function loadDailyStats() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(getDailyStatsPath(), "utf8"));
+    return normalizeDailyStats(saved);
+  } catch {
+    return {};
+  }
+}
+
+function saveDailyStats() {
+  ensureUserDataDir();
+  fs.writeFileSync(getDailyStatsPath(), JSON.stringify(dailyStats, null, 2));
+}
+
+function ensureUserDataDir() {
+  fs.mkdirSync(app.getPath("userData"), { recursive: true });
+}
+
+function recordCompletedFocusSession(durationSeconds) {
+  const dateKey = getLocalDateKey();
+  const currentStats = getStatsForDate(dateKey);
+  dailyStats[dateKey] = {
+    completedFocusSessions: currentStats.completedFocusSessions + 1,
+    completedFocusMinutes: currentStats.completedFocusMinutes + secondsToCompletedMinutes(durationSeconds)
+  };
+  saveDailyStats();
+}
+
+function getTodayStats() {
+  const dateKey = getLocalDateKey();
+  return {
+    date: dateKey,
+    ...getStatsForDate(dateKey)
+  };
+}
+
+function getStatsForDate(dateKey) {
+  return normalizeDailyStat(dailyStats[dateKey]);
+}
+
+function normalizeDailyStats(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+
+  return Object.entries(raw).reduce((statsByDate, [dateKey, stats]) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      return statsByDate;
+    }
+
+    statsByDate[dateKey] = normalizeDailyStat(stats);
+    return statsByDate;
+  }, {});
+}
+
+function normalizeDailyStat(raw) {
+  return {
+    completedFocusSessions: clampNonNegativeInteger(raw?.completedFocusSessions),
+    completedFocusMinutes: clampNonNegativeInteger(raw?.completedFocusMinutes)
+  };
+}
+
+function clampNonNegativeInteger(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+}
+
+function secondsToCompletedMinutes(seconds) {
+  return Math.max(1, Math.round(seconds / 60));
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeSettings(raw) {
@@ -786,6 +876,7 @@ ipcMain.handle("window:show", async () => showMainWindow());
 app.whenReady().then(() => {
   app.setName("本地番茄钟");
   settings = loadSettings();
+  dailyStats = loadDailyStats();
   state.totalSeconds = durationForPhase(state.phase);
   state.remainingSeconds = state.totalSeconds;
   createTray();
