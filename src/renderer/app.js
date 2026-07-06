@@ -71,6 +71,12 @@ bridge.getState().then(nextSnapshot => {
 });
 
 function bindEvents() {
+  window.addEventListener("pointerdown", () => {
+    if (isRestActive(snapshot)) {
+      bridge.reassertRestStack();
+    }
+  }, { capture: true });
+
   elements.startPauseButton.addEventListener("click", async () => {
     if (isStrictRestActive(snapshot)) {
       return;

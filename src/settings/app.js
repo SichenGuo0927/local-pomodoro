@@ -49,6 +49,9 @@ bridge.getState().then(nextSnapshot => {
 });
 
 function bindEvents() {
+  window.addEventListener("pointerdown", () => {
+    bridge.reassertRestStack();
+  }, { capture: true });
   elements.settingsCloseButton.addEventListener("click", () => window.close());
   elements.settingsForm.addEventListener("input", () => {
     formDirty = true;

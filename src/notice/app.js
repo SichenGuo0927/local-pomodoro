@@ -13,6 +13,10 @@ const elements = {
   timeDisplay: document.querySelector("#timeDisplay")
 };
 
+window.addEventListener("pointerdown", () => {
+  bridge.reassertRestStack();
+}, { capture: true });
+
 bridge.onState(render);
 bridge.getState().then(render);
 

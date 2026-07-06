@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS = {
   notificationsEnabled: true
 };
 const REST_MODES = new Set(["relaxed", "strict"]);
+const STRICT_REST_MAIN_WINDOW_LEVEL = "pop-up-menu";
 const REST_BLOCKER_URL = `data:text/html;charset=utf-8,${encodeURIComponent(
   "<!doctype html><html><body style=\"margin:0;background:rgba(0,0,0,0.01);\"></body></html>"
 )}`;
@@ -93,6 +94,7 @@ let notice = null;
 let restBlockerWindows = new Map();
 let settingsDialogOpen = false;
 let noticeHiddenForSettingsDialog = false;
+let pendingRestLayerReassertion = null;
 let trayMenuOpen = false;
 let activeTrayMenu = null;
 let pendingTrayClickTimer = null;
@@ -139,6 +141,7 @@ function createWindow() {
       raiseRestSurfacesForCurrentMode({ reassert: true });
     }
   });
+  mainWindow.on("focus", () => scheduleRestLayerReassertion({ immediate: true }));
   mainWindow.on("move", updateRestSurfacePositions);
   mainWindow.on("restore", updateRestSurfacePositions);
   mainWindow.on("resize", updateRestSurfacePositions);
@@ -621,6 +624,8 @@ function showNoticeWindow() {
       }
     });
     noticeWindow.webContents.once("did-finish-load", broadcastState);
+    noticeWindow.on("show", () => scheduleRestLayerReassertion());
+    noticeWindow.on("focus", () => scheduleRestLayerReassertion({ immediate: true }));
     noticeWindow.on("close", event => {
       if (isQuitting || !notice) {
         return;
@@ -813,7 +818,7 @@ function showStrictRestAccessSurface(options = {}) {
 
   setMainWindowStrictChrome(true);
   if (reassert || !isWindowAlwaysOnTop(mainWindow)) {
-    mainWindow.setAlwaysOnTop(true, "screen-saver");
+    mainWindow.setAlwaysOnTop(true, STRICT_REST_MAIN_WINDOW_LEVEL);
     changed = true;
   }
   if (reassert) {
@@ -961,7 +966,7 @@ function raiseMainWindowAboveBlockers(options = {}) {
   }
 
   if (reassert || !isWindowAlwaysOnTop(mainWindow)) {
-    mainWindow.setAlwaysOnTop(true, "screen-saver");
+    mainWindow.setAlwaysOnTop(true, STRICT_REST_MAIN_WINDOW_LEVEL);
     mainWindow.moveTop();
   }
   if (focus) {
@@ -1088,6 +1093,8 @@ function openRestSettingsWindow() {
     });
     settingsWindow.webContents.once("did-finish-load", broadcastState);
     const openedSettingsWindow = settingsWindow;
+    settingsWindow.on("show", () => scheduleRestLayerReassertion({ immediate: true }));
+    settingsWindow.on("focus", () => scheduleRestLayerReassertion());
     settingsWindow.on("closed", () => {
       if (settingsWindow === openedSettingsWindow) {
         settingsWindow = null;
@@ -1201,6 +1208,43 @@ function updateRestSurfacePositions() {
   }
 }
 
+function scheduleRestLayerReassertion(options = {}) {
+  const { immediate = false } = options;
+
+  if (!shouldShowRestSurfaces()) {
+    return;
+  }
+
+  if (immediate) {
+    reassertRestLayerOrder();
+  }
+  if (pendingRestLayerReassertion !== null) {
+    return;
+  }
+
+  pendingRestLayerReassertion = setTimeout(() => {
+    pendingRestLayerReassertion = null;
+    reassertRestLayerOrder();
+  }, 0);
+}
+
+function reassertRestLayerOrder() {
+  if (!shouldShowRestSurfaces()) {
+    return;
+  }
+
+  if (shouldShowRestBlockers()) {
+    // Strict mode keeps the main view available for Settings, but the notice must remain above it.
+    raiseNoticeWindowAboveBlockers({ focus: false, reassert: true });
+    if (settingsDialogOpen) {
+      raiseSettingsWindowAboveNotice({ focus: false, reassert: true });
+    }
+    return;
+  }
+
+  raiseRelaxedRestSurfaces({ reassert: true });
+}
+
 function isMainWindowVisible() {
   return Boolean(
     mainWindow
@@ -1219,6 +1263,10 @@ function rectsOverlap(left, right) {
 
 function closeRestSettingsWindow() {
   settingsDialogOpen = false;
+  if (pendingRestLayerReassertion !== null) {
+    clearTimeout(pendingRestLayerReassertion);
+    pendingRestLayerReassertion = null;
+  }
   if (!settingsWindow || settingsWindow.isDestroyed()) {
     settingsWindow = null;
     return;
@@ -1514,6 +1562,10 @@ ipcMain.handle("timer:skip", async () => (shouldShowRestBlockers() ? getSnapshot
 ipcMain.handle("timer:update-settings", async (_event, nextSettings) => updateSettings(nextSettings, { reset: true }));
 ipcMain.handle("settings:set-open", async (_event, isOpen) => setSettingsDialogOpen(isOpen));
 ipcMain.handle("settings:open-rest-window", async () => openRestSettingsWindow());
+ipcMain.handle("window:reassert-rest-stack", async () => {
+  scheduleRestLayerReassertion({ immediate: true });
+  return getSnapshot();
+});
 ipcMain.handle("window:show", async () => showMainWindow());
 
 app.whenReady().then(() => {
@@ -1532,6 +1584,10 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  if (pendingRestLayerReassertion !== null) {
+    clearTimeout(pendingRestLayerReassertion);
+    pendingRestLayerReassertion = null;
+  }
   closeRestSettingsWindow();
   restoreStrictRestAccessSurface();
   closeRestBlockers();

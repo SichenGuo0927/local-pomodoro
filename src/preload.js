@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld("pomodoroApp", {
   openRestSettingsWindow() {
     return ipcRenderer.invoke("settings:open-rest-window");
   },
+  reassertRestStack() {
+    return ipcRenderer.invoke("window:reassert-rest-stack");
+  },
   showWindow() {
     return ipcRenderer.invoke("window:show");
   },
