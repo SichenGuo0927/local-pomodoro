@@ -472,7 +472,7 @@ function createBreakEndNotice(completedPhase) {
   return {
     type: "breakEnd",
     title: `${completedTitle}结束`,
-    body: "点击“回到专注”确认，提示音会停止并开始下一轮专注。",
+    body: "准备好后，回到下一轮专注。",
     actionLabel: "回到专注",
     requiresAcknowledgement: true
   };
@@ -624,11 +624,11 @@ function showNoticeForPhase(phase) {
 function showNoticeWindow() {
   if (!noticeWindow || noticeWindow.isDestroyed()) {
     noticeWindow = new BrowserWindow({
-      width: 360,
+      width: 380,
       height: 260,
-      minWidth: 320,
+      minWidth: 340,
       minHeight: 220,
-      maxWidth: 420,
+      maxWidth: 440,
       maxHeight: 320,
       title: "本地番茄钟提醒",
       show: false,

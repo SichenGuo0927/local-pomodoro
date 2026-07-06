@@ -34,6 +34,7 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: stretch;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
@@ -49,6 +50,7 @@ button {
   display: grid;
   align-content: center;
   gap: 10px;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--rest) 54%, var(--line));
   background: color-mix(in srgb, var(--rest) 10%, var(--panel));
 }
@@ -61,6 +63,11 @@ button {
 .notice-card[data-notice="breakEnd"] {
   border-color: color-mix(in srgb, var(--accent) 54%, var(--line));
   background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+
+.notice-card[data-awaiting-acknowledgement="true"] {
+  gap: 12px;
+  padding-block: 28px;
 }
 
 .phase-label,
@@ -84,6 +91,7 @@ h1 {
   color: var(--muted);
   font-size: 16px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .time-display {
@@ -97,11 +105,11 @@ h1 {
 
 .acknowledge-button {
   justify-self: start;
-  min-height: 38px;
-  margin-top: 2px;
+  min-height: 40px;
+  margin-top: 4px;
   border: 0;
   border-radius: 8px;
-  padding: 0 14px;
+  padding: 0 16px;
   color: #fff7ed;
   background: var(--accent);
   cursor: pointer;

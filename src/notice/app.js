@@ -40,10 +40,13 @@ function render(nextSnapshot) {
 
   document.title = `${formatTime(nextSnapshot.remainingSeconds)} - ${notice.title}`;
   elements.noticeCard.dataset.notice = notice.type || nextSnapshot.phase;
+  elements.noticeCard.dataset.awaitingAcknowledgement = notice.requiresAcknowledgement ? "true" : "false";
   elements.phaseLabel.textContent = PHASES[nextSnapshot.phase] || nextSnapshot.phaseTitle;
   elements.noticeTitle.textContent = notice.title;
   elements.noticeBody.textContent = notice.body;
   elements.timeDisplay.textContent = formatTime(nextSnapshot.remainingSeconds);
+  elements.phaseLabel.hidden = Boolean(notice.requiresAcknowledgement);
+  elements.timeDisplay.hidden = Boolean(notice.requiresAcknowledgement);
   elements.acknowledgeButton.textContent = notice.actionLabel || "回到专注";
   elements.acknowledgeButton.hidden = !notice.requiresAcknowledgement;
 }
