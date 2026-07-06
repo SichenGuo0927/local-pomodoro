@@ -68,17 +68,17 @@ const FOCUS_AUTO_PAUSE_NOTICES = {
   lockScreen: {
     type: "focusAutoPaused",
     title: "专注已暂停",
-    body: "检测到锁屏，专注计时已停止。"
+    body: "检测到锁屏，专注计时已暂停，返回后会自动继续。"
   },
   suspend: {
     type: "focusAutoPaused",
     title: "专注已暂停",
-    body: "检测到系统休眠，专注计时已停止。"
+    body: "检测到熄屏、盒盖或系统休眠，专注计时已暂停，唤醒后会自动继续。"
   },
   sessionInactive: {
     type: "focusAutoPaused",
     title: "专注已暂停",
-    body: "检测到用户会话离开活跃状态，专注计时已停止。"
+    body: "检测到系统暂离，专注计时已暂停，返回后会自动继续。"
   }
 };
 const SYSTEM_SOUND_DIR = "/System/Library/Sounds";
@@ -105,6 +105,7 @@ let trayMenuOpen = false;
 let activeTrayMenu = null;
 let pendingTrayClickTimer = null;
 let lastTrayMenuClosedAt = 0;
+let pendingFocusAutoResume = null;
 
 const state = {
   phase: "focus",
@@ -328,7 +329,13 @@ function showMainWindow(options = {}) {
   }
 }
 
-function startTimer() {
+function startTimer(options = {}) {
+  const { autoResume = false } = options;
+
+  if (!autoResume) {
+    clearPendingFocusAutoResume();
+  }
+
   if (state.running) {
     return getSnapshot();
   }
@@ -344,7 +351,13 @@ function startTimer() {
   return getSnapshot();
 }
 
-function pauseTimer() {
+function pauseTimer(options = {}) {
+  const { keepAutoResume = false } = options;
+
+  if (!keepAutoResume) {
+    clearPendingFocusAutoResume();
+  }
+
   if (!state.running) {
     return getSnapshot();
   }
@@ -365,13 +378,36 @@ function pauseFocusForSystemAway(reason) {
   }
 
   const pauseNotice = FOCUS_AUTO_PAUSE_NOTICES[reason] || FOCUS_AUTO_PAUSE_NOTICES.suspend;
-  pauseTimer();
+  pendingFocusAutoResume = {
+    reason,
+    pausedAt: Date.now()
+  };
+  pauseTimer({ keepAutoResume: true });
   notice = { ...pauseNotice };
   broadcastState();
   return getSnapshot();
 }
 
+function resumeFocusAfterSystemAway() {
+  if (!pendingFocusAutoResume) {
+    return getSnapshot();
+  }
+
+  clearPendingFocusAutoResume();
+
+  if (state.running || state.phase !== "focus" || state.remainingSeconds <= 0) {
+    return getSnapshot();
+  }
+
+  return startTimer({ autoResume: true });
+}
+
+function clearPendingFocusAutoResume() {
+  pendingFocusAutoResume = null;
+}
+
 function resetCurrentPhase() {
+  clearPendingFocusAutoResume();
   clearNotice();
   clearInterval(state.intervalId);
   state.intervalId = null;
@@ -395,6 +431,7 @@ function tick() {
 }
 
 function completePhase({ manual }) {
+  clearPendingFocusAutoResume();
   const completedPhase = state.phase;
   clearInterval(state.intervalId);
   state.intervalId = null;
@@ -821,6 +858,9 @@ app.whenReady().then(() => {
   powerMonitor.on("lock-screen", () => pauseFocusForSystemAway("lockScreen"));
   powerMonitor.on("suspend", () => pauseFocusForSystemAway("suspend"));
   powerMonitor.on("user-did-resign-active", () => pauseFocusForSystemAway("sessionInactive"));
+  powerMonitor.on("resume", resumeFocusAfterSystemAway);
+  powerMonitor.on("unlock-screen", resumeFocusAfterSystemAway);
+  powerMonitor.on("user-did-become-active", resumeFocusAfterSystemAway);
   createTray();
   createWindow();
 
