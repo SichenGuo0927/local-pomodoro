@@ -889,6 +889,9 @@ function raiseRelaxedRestSurfaces(options = {}) {
   if (!(settingsDialogOpen && noticeHiddenForSettingsDialog)) {
     raiseNoticeWindowAboveBlockers({ focus: false, reassert: reassert || changed });
   }
+  if (settingsDialogOpen) {
+    raiseSettingsWindowAboveNotice({ focus: focusMain, reassert: true });
+  }
   return changed;
 }
 
@@ -935,6 +938,22 @@ function restoreRelaxedRestSurfaces() {
 
   mainWindow.setAlwaysOnTop(false);
   mainWindow.setVisibleOnAllWorkspaces(false);
+}
+
+function raiseSettingsWindowAboveNotice(options = {}) {
+  const { focus = false, reassert = false } = options;
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (reassert || !isWindowAlwaysOnTop(mainWindow)) {
+    mainWindow.setAlwaysOnTop(true, "screen-saver");
+    mainWindow.moveTop();
+  }
+  if (focus) {
+    mainWindow.focus();
+  }
 }
 
 function raiseMainWindowAboveBlockers(options = {}) {
@@ -1014,8 +1033,14 @@ function setSettingsDialogOpen(isOpen) {
   settingsDialogOpen = Boolean(isOpen);
 
   if (!shouldShowRestBlockers()) {
+    if (settingsDialogOpen && shouldShowRestSurfaces()) {
+      raiseSettingsWindowAboveNotice({ focus: true, reassert: true });
+    }
     if (!settingsDialogOpen) {
       restoreNoticeHiddenForSettingsDialog();
+      if (shouldShowRestSurfaces()) {
+        raiseRelaxedRestSurfaces({ reassert: true });
+      }
     }
     return getSnapshot();
   }
