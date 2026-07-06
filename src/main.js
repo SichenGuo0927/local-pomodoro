@@ -7,6 +7,7 @@ const {
   nativeTheme,
   Notification,
   powerSaveBlocker,
+  screen,
   shell,
   Tray
 } = require("electron");
@@ -22,7 +23,8 @@ const DEFAULT_SETTINGS = {
   sessionsBeforeLongBreak: 4,
   autoStartNext: true,
   soundEnabled: true,
-  notificationsEnabled: true
+  notificationsEnabled: true,
+  countdownDisplayMode: "menuBar"
 };
 
 const PHASES = {
@@ -63,6 +65,12 @@ const LONG_BREAK_NOTICE = {
   title: "进入长休息",
   body: "喝水，站起来走动一下。"
 };
+const COUNTDOWN_DISPLAY_MODES = new Set(["menuBar", "floatingWindow"]);
+const BREAK_PHASES = new Set(["shortBreak", "longBreak"]);
+const FLOATING_WINDOW_SIZE = {
+  width: 154,
+  height: 138
+};
 const SYSTEM_SOUND_DIR = "/System/Library/Sounds";
 const SOUND_SEQUENCES = {
   rest: [
@@ -78,6 +86,7 @@ const SOUND_SEQUENCES = {
 
 let mainWindow;
 let noticeWindow;
+let floatingWindow;
 let tray;
 let settings = { ...DEFAULT_SETTINGS };
 let isQuitting = false;
@@ -152,7 +161,7 @@ function updateTray() {
   const snapshot = getSnapshot();
   const status = `${snapshot.phaseTitle} ${formatTime(snapshot.remainingSeconds)}`;
   tray.setToolTip(`本地番茄钟 - ${status}`);
-  tray.setTitle(snapshot.running ? formatTime(snapshot.remainingSeconds) : "番茄钟");
+  tray.setTitle(settings.countdownDisplayMode === "menuBar" && snapshot.running ? formatTime(snapshot.remainingSeconds) : "番茄钟");
 }
 
 function buildTrayMenu() {
@@ -415,10 +424,11 @@ function advancePhase(completedPhase) {
 }
 
 function updateSettings(nextSettings, options = { reset: true }) {
+  const previousSettings = settings;
   settings = normalizeSettings(nextSettings);
   saveSettings(settings);
 
-  if (options.reset) {
+  if (options.reset && shouldResetTimerForSettingsChange(previousSettings, settings)) {
     state.totalSeconds = durationForPhase(state.phase);
     state.remainingSeconds = Math.min(state.remainingSeconds, state.totalSeconds);
     resetCurrentPhase();
@@ -427,6 +437,16 @@ function updateSettings(nextSettings, options = { reset: true }) {
   }
 
   return getSnapshot();
+}
+
+function shouldResetTimerForSettingsChange(previousSettings, nextSettings) {
+  return previousSettings.focusMinutes !== nextSettings.focusMinutes
+    || previousSettings.shortBreakMinutes !== nextSettings.shortBreakMinutes
+    || previousSettings.longBreakMinutes !== nextSettings.longBreakMinutes
+    || previousSettings.sessionsBeforeLongBreak !== nextSettings.sessionsBeforeLongBreak
+    || previousSettings.autoStartNext !== nextSettings.autoStartNext
+    || previousSettings.soundEnabled !== nextSettings.soundEnabled
+    || previousSettings.notificationsEnabled !== nextSettings.notificationsEnabled;
 }
 
 function announceTransition(completedPhase, nextPhase) {
@@ -563,6 +583,138 @@ function closeNoticeWindow() {
   windowToClose.close();
 }
 
+function syncFloatingCountdownWindow(snapshot = getSnapshot()) {
+  if (!shouldShowFloatingCountdownWindow(snapshot)) {
+    hideFloatingCountdownWindow();
+    return;
+  }
+
+  if (!floatingWindow || floatingWindow.isDestroyed()) {
+    createFloatingCountdownWindow();
+  }
+
+  sendFloatingCountdownState(snapshot);
+  showFloatingCountdownWindow();
+}
+
+function shouldShowFloatingCountdownWindow(snapshot) {
+  return settings.countdownDisplayMode === "floatingWindow"
+    && snapshot.running
+    && !hasBreakNotice(snapshot);
+}
+
+function hasBreakNotice(snapshot) {
+  if (!BREAK_PHASES.has(snapshot.phase)) {
+    return false;
+  }
+
+  return Boolean(snapshot.notice) || Boolean(noticeWindow && !noticeWindow.isDestroyed());
+}
+
+function createFloatingCountdownWindow() {
+  const nextFloatingWindow = new BrowserWindow({
+    width: FLOATING_WINDOW_SIZE.width,
+    height: FLOATING_WINDOW_SIZE.height,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    frame: false,
+    transparent: true,
+    show: false,
+    title: "本地番茄钟倒计时",
+    backgroundColor: "#00000000",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false
+    }
+  });
+
+  floatingWindow = nextFloatingWindow;
+  positionFloatingCountdownWindow();
+  nextFloatingWindow.loadFile(path.join(__dirname, "floating", "index.html"));
+  nextFloatingWindow.once("ready-to-show", () => {
+    if (floatingWindow !== nextFloatingWindow || nextFloatingWindow.isDestroyed()) {
+      return;
+    }
+
+    if (shouldShowFloatingCountdownWindow(getSnapshot())) {
+      showFloatingCountdownWindow();
+    }
+  });
+  nextFloatingWindow.webContents.once("did-finish-load", () => {
+    if (floatingWindow !== nextFloatingWindow || nextFloatingWindow.isDestroyed()) {
+      return;
+    }
+
+    sendFloatingCountdownState(getSnapshot());
+    if (shouldShowFloatingCountdownWindow(getSnapshot())) {
+      showFloatingCountdownWindow();
+    }
+  });
+  nextFloatingWindow.on("closed", () => {
+    if (floatingWindow === nextFloatingWindow) {
+      floatingWindow = null;
+    }
+  });
+}
+
+function sendFloatingCountdownState(snapshot) {
+  if (!floatingWindow || floatingWindow.isDestroyed() || floatingWindow.webContents.isLoading()) {
+    return;
+  }
+
+  floatingWindow.webContents.send("timer-state", snapshot);
+}
+
+function showFloatingCountdownWindow() {
+  if (!floatingWindow || floatingWindow.isDestroyed()) {
+    return;
+  }
+
+  floatingWindow.setAlwaysOnTop(true, "floating");
+  floatingWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  if (floatingWindow.webContents.isLoading()) {
+    return;
+  }
+
+  if (floatingWindow.isVisible()) {
+    return;
+  }
+
+  if (typeof floatingWindow.showInactive === "function") {
+    floatingWindow.showInactive();
+  } else {
+    floatingWindow.show();
+  }
+}
+
+function hideFloatingCountdownWindow() {
+  if (!floatingWindow || floatingWindow.isDestroyed() || !floatingWindow.isVisible()) {
+    return;
+  }
+
+  floatingWindow.hide();
+}
+
+function positionFloatingCountdownWindow() {
+  if (!floatingWindow || floatingWindow.isDestroyed()) {
+    return;
+  }
+
+  const { workArea } = screen.getPrimaryDisplay();
+  floatingWindow.setBounds({
+    width: FLOATING_WINDOW_SIZE.width,
+    height: FLOATING_WINDOW_SIZE.height,
+    x: Math.round(workArea.x + workArea.width - FLOATING_WINDOW_SIZE.width - 16),
+    y: Math.round(workArea.y + 16)
+  });
+}
+
 function createCycleProgressIcon(snapshot) {
   const total = Math.max(1, settings.sessionsBeforeLongBreak);
   const progress = Math.min(Math.max(snapshot.focusNumber / total, 0), 1);
@@ -662,6 +814,7 @@ function broadcastState() {
   });
   updateDockBadge(snapshot);
   updateTray();
+  syncFloatingCountdownWindow(snapshot);
 }
 
 function getSnapshot() {
@@ -755,8 +908,13 @@ function normalizeSettings(raw) {
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
     autoStartNext: Boolean(raw.autoStartNext),
     soundEnabled: Boolean(raw.soundEnabled),
-    notificationsEnabled: Boolean(raw.notificationsEnabled)
+    notificationsEnabled: Boolean(raw.notificationsEnabled),
+    countdownDisplayMode: normalizeCountdownDisplayMode(raw.countdownDisplayMode)
   };
+}
+
+function normalizeCountdownDisplayMode(value) {
+  return COUNTDOWN_DISPLAY_MODES.has(value) ? value : DEFAULT_SETTINGS.countdownDisplayMode;
 }
 
 function clampInteger(value, min, max, fallback) {

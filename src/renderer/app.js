@@ -5,7 +5,8 @@ const DEFAULT_SETTINGS = {
   sessionsBeforeLongBreak: 4,
   autoStartNext: true,
   soundEnabled: true,
-  notificationsEnabled: true
+  notificationsEnabled: true,
+  countdownDisplayMode: "menuBar"
 };
 
 const PHASES = {
@@ -49,6 +50,8 @@ const elements = {
   shortBreakMinutes: document.querySelector("#shortBreakMinutes"),
   longBreakMinutes: document.querySelector("#longBreakMinutes"),
   sessionsBeforeLongBreak: document.querySelector("#sessionsBeforeLongBreak"),
+  countdownMenuBar: document.querySelector("#countdownMenuBar"),
+  countdownFloatingWindow: document.querySelector("#countdownFloatingWindow"),
   autoStartNext: document.querySelector("#autoStartNext"),
   soundEnabled: document.querySelector("#soundEnabled"),
   notificationsEnabled: document.querySelector("#notificationsEnabled")
@@ -140,6 +143,7 @@ function readSettingsForm() {
     shortBreakMinutes: elements.shortBreakMinutes.value,
     longBreakMinutes: elements.longBreakMinutes.value,
     sessionsBeforeLongBreak: elements.sessionsBeforeLongBreak.value,
+    countdownDisplayMode: elements.countdownFloatingWindow.checked ? "floatingWindow" : "menuBar",
     autoStartNext: elements.autoStartNext.checked,
     soundEnabled: elements.soundEnabled.checked,
     notificationsEnabled: elements.notificationsEnabled.checked
@@ -152,10 +156,15 @@ function normalizeSettings(raw) {
     shortBreakMinutes: clampDecimalMinutes(raw.shortBreakMinutes, 1 / 60, 60, DEFAULT_SETTINGS.shortBreakMinutes),
     longBreakMinutes: clampInteger(raw.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
+    countdownDisplayMode: normalizeCountdownDisplayMode(raw.countdownDisplayMode),
     autoStartNext: Boolean(raw.autoStartNext),
     soundEnabled: Boolean(raw.soundEnabled),
     notificationsEnabled: Boolean(raw.notificationsEnabled)
   };
+}
+
+function normalizeCountdownDisplayMode(value) {
+  return value === "floatingWindow" ? "floatingWindow" : DEFAULT_SETTINGS.countdownDisplayMode;
 }
 
 function clampInteger(value, min, max, fallback) {
@@ -205,6 +214,8 @@ function renderSettings(settings) {
   elements.shortBreakMinutes.value = settings.shortBreakMinutes;
   elements.longBreakMinutes.value = settings.longBreakMinutes;
   elements.sessionsBeforeLongBreak.value = settings.sessionsBeforeLongBreak;
+  elements.countdownMenuBar.checked = settings.countdownDisplayMode !== "floatingWindow";
+  elements.countdownFloatingWindow.checked = settings.countdownDisplayMode === "floatingWindow";
   elements.autoStartNext.checked = settings.autoStartNext;
   elements.soundEnabled.checked = settings.soundEnabled;
   elements.notificationsEnabled.checked = settings.notificationsEnabled;

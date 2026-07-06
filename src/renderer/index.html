@@ -63,6 +63,20 @@
               <input id="sessionsBeforeLongBreak" name="sessionsBeforeLongBreak" type="number" min="1" max="12" step="1" inputmode="numeric" />
             </label>
 
+            <fieldset class="display-mode-field">
+              <legend>倒计时显示</legend>
+              <div class="display-mode-options">
+                <label class="display-mode-option">
+                  <input id="countdownMenuBar" name="countdownDisplayMode" type="radio" value="menuBar" />
+                  <span>菜单栏</span>
+                </label>
+                <label class="display-mode-option">
+                  <input id="countdownFloatingWindow" name="countdownDisplayMode" type="radio" value="floatingWindow" />
+                  <span>浮动窗口</span>
+                </label>
+              </div>
+            </fieldset>
+
             <div class="toggles">
               <label class="toggle-row">
                 <input id="autoStartNext" name="autoStartNext" type="checkbox" />
