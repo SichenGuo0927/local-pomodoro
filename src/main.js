@@ -450,6 +450,7 @@ function completePhase({ manual }) {
     showNoticeForPhase(state.phase);
   }
 
+  syncRestBlockers({ reassert: true });
   broadcastState();
 
   if (settings.autoStartNext && completedPhase !== "longBreak") {
@@ -480,21 +481,24 @@ function advancePhase(completedPhase) {
 }
 
 function updateSettings(nextSettings, options = { reset: true }) {
+  const previousSettings = settings;
   const wasStrictRestLocked = shouldShowRestBlockers();
   settings = normalizeSettings(nextSettings);
   saveSettings(settings);
+  const restModeChanged = previousSettings.restMode !== settings.restMode;
+  const shouldResetTimer = options.reset && shouldResetTimerForSettingsChange(previousSettings, settings);
 
-  if (wasStrictRestLocked) {
-    syncRestBlockers({ reassert: true });
-    broadcastState();
-    return getSnapshot();
-  }
-
-  if (options.reset) {
+  if (shouldResetTimer) {
     state.totalSeconds = durationForPhase(state.phase);
     state.remainingSeconds = Math.min(state.remainingSeconds, state.totalSeconds);
     resetCurrentPhase();
   } else {
+    if (state.running && isBreakPhase(state.phase) && !notice) {
+      showNoticeForPhase(state.phase);
+    }
+    syncRestBlockers({
+      reassert: restModeChanged || wasStrictRestLocked || shouldShowRestBlockers() || shouldShowRestSurfaces()
+    });
     broadcastState();
   }
 
@@ -628,6 +632,9 @@ function showNoticeWindow() {
 
     noticeWindow.flashFrame(true);
     raiseNoticeWindowAboveBlockers();
+    if (!shouldShowRestBlockers() && shouldShowRestSurfaces()) {
+      raiseRelaxedRestSurfaces({ reassert: true });
+    }
     setTimeout(() => {
       if (noticeWindow && !noticeWindow.isDestroyed()) {
         noticeWindow.flashFrame(false);
@@ -642,6 +649,11 @@ function syncRestBlockers(options = {}) {
   if (!shouldShowRestBlockers()) {
     closeRestBlockers();
     restoreStrictRestAccessSurface();
+    if (shouldShowRestSurfaces()) {
+      raiseRelaxedRestSurfaces(options);
+    } else {
+      restoreRelaxedRestSurfaces();
+    }
     return;
   }
 
@@ -675,6 +687,10 @@ function syncRestBlockers(options = {}) {
 
 function shouldShowRestBlockers() {
   return settings.restMode === "strict" && state.running && isBreakPhase(state.phase);
+}
+
+function shouldShowRestSurfaces() {
+  return isBreakPhase(state.phase) && (state.running || Boolean(notice));
 }
 
 function isBreakPhase(phase) {
@@ -818,8 +834,10 @@ function restoreStrictRestAccessSurface() {
   }
 
   setMainWindowStrictChrome(false);
-  mainWindow.setAlwaysOnTop(false);
-  mainWindow.setVisibleOnAllWorkspaces(false);
+  if (!shouldShowRestSurfaces()) {
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.setVisibleOnAllWorkspaces(false);
+  }
 }
 
 function setMainWindowStrictChrome(isLocked) {
@@ -857,6 +875,66 @@ function raiseStrictRestAllowedWindows(options = {}) {
   }
 
   raiseNoticeWindowAboveBlockers({ focus: false, reassert: true });
+}
+
+function raiseRelaxedRestSurfaces(options = {}) {
+  const { reassert = false, focusMain = false } = options;
+
+  if (!shouldShowRestSurfaces()) {
+    restoreRelaxedRestSurfaces();
+    return false;
+  }
+
+  const changed = raiseRestMainWindow({ reassert, focus: focusMain });
+  if (!(settingsDialogOpen && noticeHiddenForSettingsDialog)) {
+    raiseNoticeWindowAboveBlockers({ focus: false, reassert: reassert || changed });
+  }
+  return changed;
+}
+
+function raiseRestMainWindow(options = {}) {
+  const { focus = false, reassert = false } = options;
+  let changed = false;
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    changed = true;
+  }
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return changed;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+    changed = true;
+  }
+
+  setMainWindowStrictChrome(false);
+  if (reassert || !isWindowAlwaysOnTop(mainWindow)) {
+    mainWindow.setAlwaysOnTop(true, "floating");
+    changed = true;
+  }
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+    changed = true;
+  }
+  if (changed || reassert) {
+    mainWindow.moveTop();
+  }
+  if (focus) {
+    mainWindow.focus();
+  }
+  return changed;
+}
+
+function restoreRelaxedRestSurfaces() {
+  if (!mainWindow || mainWindow.isDestroyed() || shouldShowRestBlockers()) {
+    return;
+  }
+
+  mainWindow.setAlwaysOnTop(false);
+  mainWindow.setVisibleOnAllWorkspaces(false);
 }
 
 function raiseMainWindowAboveBlockers(options = {}) {
@@ -1188,6 +1266,13 @@ function normalizeSettings(raw) {
     soundEnabled: Boolean(raw.soundEnabled),
     notificationsEnabled: Boolean(raw.notificationsEnabled)
   };
+}
+
+function shouldResetTimerForSettingsChange(previousSettings, nextSettings) {
+  return previousSettings.focusMinutes !== nextSettings.focusMinutes
+    || previousSettings.shortBreakMinutes !== nextSettings.shortBreakMinutes
+    || previousSettings.longBreakMinutes !== nextSettings.longBreakMinutes
+    || previousSettings.sessionsBeforeLongBreak !== nextSettings.sessionsBeforeLongBreak;
 }
 
 function normalizeRestMode(restMode) {
