@@ -22,6 +22,15 @@ contextBridge.exposeInMainWorld("pomodoroApp", {
   updateSettings(settings) {
     return ipcRenderer.invoke("timer:update-settings", settings);
   },
+  setSettingsOpen(isOpen) {
+    return ipcRenderer.invoke("settings:set-open", isOpen);
+  },
+  openRestSettingsWindow() {
+    return ipcRenderer.invoke("settings:open-rest-window");
+  },
+  reassertRestStack() {
+    return ipcRenderer.invoke("window:reassert-rest-stack");
+  },
   showWindow() {
     return ipcRenderer.invoke("window:show");
   },

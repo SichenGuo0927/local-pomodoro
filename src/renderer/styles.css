@@ -286,6 +286,16 @@ h2 {
   background: var(--accent-dark);
 }
 
+.primary-button:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.primary-button:disabled:hover {
+  background: var(--accent);
+}
+
 .icon-button {
   width: 46px;
   height: 46px;
@@ -299,6 +309,10 @@ h2 {
 
 .icon-button:hover {
   background: color-mix(in srgb, var(--line) 38%, transparent);
+}
+
+.icon-button:disabled:hover {
+  background: transparent;
 }
 
 .settings-dialog {
@@ -378,6 +392,11 @@ h2 {
   font-size: 15px;
 }
 
+.settings-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
 .settings-form input:focus-visible,
 .settings-toggle:focus-visible,
 .attention-action:focus-visible,
@@ -389,19 +408,21 @@ h2 {
   outline-offset: 2px;
 }
 
-.display-mode-field {
+.display-mode-field,
+.rest-mode-field {
   grid-column: 1 / -1;
   margin: 2px 0 0;
   padding: 0;
   border: 0;
   display: grid;
   gap: 8px;
-}
-
-.display-mode-field legend {
-  padding: 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.display-mode-field legend,
+.rest-mode-field legend {
+  padding: 0;
 }
 
 .display-mode-options {
@@ -446,6 +467,57 @@ h2 {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+.rest-mode-field legend {
+  padding: 0;
+}
+
+.rest-mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+}
+
+.rest-mode-options label {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  min-width: 0;
+  color: var(--muted) !important;
+  cursor: pointer;
+}
+
+.rest-mode-options input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rest-mode-options span {
+  min-height: 34px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rest-mode-options input:checked + span {
+  color: #fff7ed;
+  background: var(--accent);
+}
+
+.rest-mode-options input:focus-visible + span {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
 }
 
 .toggles {

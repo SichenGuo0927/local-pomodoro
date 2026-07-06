@@ -4,10 +4,12 @@ const DEFAULT_SETTINGS = {
   longBreakMinutes: 15,
   sessionsBeforeLongBreak: 4,
   autoStartNext: true,
+  restMode: "relaxed",
   soundEnabled: true,
   notificationsEnabled: true,
   countdownDisplayMode: "menuBar"
 };
+const REST_MODES = new Set(["relaxed", "strict"]);
 
 const PHASES = {
   focus: "专注",
@@ -61,6 +63,7 @@ const elements = {
   sessionsBeforeLongBreak: document.querySelector("#sessionsBeforeLongBreak"),
   countdownMenuBar: document.querySelector("#countdownMenuBar"),
   countdownFloatingWindow: document.querySelector("#countdownFloatingWindow"),
+  restModeOptions: Array.from(document.querySelectorAll("input[name='restMode']")),
   autoStartNext: document.querySelector("#autoStartNext"),
   soundEnabled: document.querySelector("#soundEnabled"),
   notificationsEnabled: document.querySelector("#notificationsEnabled")
@@ -80,21 +83,41 @@ bridge.getState().then(nextSnapshot => {
 });
 
 function bindEvents() {
+  window.addEventListener("pointerdown", () => {
+    if (isRestActive(snapshot)) {
+      bridge.reassertRestStack();
+    }
+  }, { capture: true });
+
   elements.startPauseButton.addEventListener("click", async () => {
     if (snapshot.awaitingBreakAcknowledgement) {
       snapshot = await bridge.acknowledgeBreakEnd();
-    } else {
-      snapshot = snapshot.running ? await bridge.pause() : await bridge.start();
+      render(snapshot);
+      return;
     }
+
+    if (isStrictRestActive(snapshot)) {
+      return;
+    }
+
+    snapshot = snapshot.running ? await bridge.pause() : await bridge.start();
     render(snapshot);
   });
 
   elements.resetButton.addEventListener("click", async () => {
+    if (isStrictRestActive(snapshot)) {
+      return;
+    }
+
     snapshot = await bridge.reset();
     render(snapshot);
   });
 
   elements.skipButton.addEventListener("click", async () => {
+    if (isStrictRestActive(snapshot)) {
+      return;
+    }
+
     snapshot = await bridge.skip();
     render(snapshot);
   });
@@ -115,6 +138,7 @@ function bindEvents() {
   });
 
   elements.settingsDialog.addEventListener("close", () => {
+    bridge.setSettingsOpen(false);
     elements.settingsToggleButton.setAttribute("aria-expanded", "false");
     renderSettings(snapshot.settings);
   });
@@ -127,7 +151,13 @@ function bindEvents() {
   });
 }
 
-function openSettingsDialog() {
+async function openSettingsDialog() {
+  if (isRestActive(snapshot)) {
+    snapshot = await bridge.openRestSettingsWindow();
+    render(snapshot);
+    return;
+  }
+
   if (elements.settingsDialog.open) {
     return;
   }
@@ -141,7 +171,12 @@ function openSettingsDialog() {
     elements.settingsDialog.setAttribute("open", "");
   }
 
-  elements.focusMinutes.focus();
+  bridge.setSettingsOpen(true);
+  if (isStrictRestActive(snapshot)) {
+    elements.restModeOptions.find(option => option.value === "relaxed")?.focus();
+  } else {
+    elements.focusMinutes.focus();
+  }
 }
 
 function closeSettingsDialog() {
@@ -151,6 +186,7 @@ function closeSettingsDialog() {
   }
 
   elements.settingsDialog.removeAttribute("open");
+  bridge.setSettingsOpen(false);
   elements.settingsToggleButton.setAttribute("aria-expanded", "false");
   renderSettings(snapshot.settings);
 }
@@ -162,6 +198,7 @@ function readSettingsForm() {
     longBreakMinutes: elements.longBreakMinutes.value,
     sessionsBeforeLongBreak: elements.sessionsBeforeLongBreak.value,
     countdownDisplayMode: elements.countdownFloatingWindow.checked ? "floatingWindow" : "menuBar",
+    restMode: elements.restModeOptions.find(option => option.checked)?.value,
     autoStartNext: elements.autoStartNext.checked,
     soundEnabled: elements.soundEnabled.checked,
     notificationsEnabled: elements.notificationsEnabled.checked
@@ -175,6 +212,7 @@ function normalizeSettings(raw) {
     longBreakMinutes: clampInteger(raw.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
     countdownDisplayMode: normalizeCountdownDisplayMode(raw.countdownDisplayMode),
+    restMode: normalizeRestMode(raw.restMode),
     autoStartNext: Boolean(raw.autoStartNext),
     soundEnabled: Boolean(raw.soundEnabled),
     notificationsEnabled: Boolean(raw.notificationsEnabled)
@@ -183,6 +221,10 @@ function normalizeSettings(raw) {
 
 function normalizeCountdownDisplayMode(value) {
   return value === "floatingWindow" ? "floatingWindow" : DEFAULT_SETTINGS.countdownDisplayMode;
+}
+
+function normalizeRestMode(restMode) {
+  return REST_MODES.has(restMode) ? restMode : DEFAULT_SETTINGS.restMode;
 }
 
 function clampInteger(value, min, max, fallback) {
@@ -209,11 +251,13 @@ function formatTime(seconds) {
 
 function render(nextSnapshot) {
   const settings = nextSnapshot.settings;
+  const strictRestActive = isStrictRestActive(nextSnapshot);
   const progress = nextSnapshot.totalSeconds === 0
     ? 0
     : ((nextSnapshot.totalSeconds - nextSnapshot.remainingSeconds) / nextSnapshot.totalSeconds) * 100;
 
   document.body.dataset.phase = nextSnapshot.phase;
+  document.body.dataset.strictRest = strictRestActive ? "true" : "false";
   document.title = `${formatTime(nextSnapshot.remainingSeconds)} - ${PHASES[nextSnapshot.phase]}`;
   elements.phaseLabel.textContent = nextSnapshot.phaseTitle;
   elements.cyclePill.textContent = `${nextSnapshot.focusNumber}/${settings.sessionsBeforeLongBreak}`;
@@ -224,6 +268,9 @@ function render(nextSnapshot) {
     ? "回到专注"
     : (nextSnapshot.running ? "⏸ 暂停" : "▶ 开始");
   renderTodayStats(nextSnapshot.todayStats);
+  elements.startPauseButton.disabled = strictRestActive;
+  elements.resetButton.disabled = strictRestActive;
+  elements.skipButton.disabled = strictRestActive;
   renderNotice(nextSnapshot.notice);
   if (!elements.settingsDialog.open) {
     renderSettings(settings);
@@ -250,9 +297,25 @@ function renderSettings(settings) {
   elements.sessionsBeforeLongBreak.value = settings.sessionsBeforeLongBreak;
   elements.countdownMenuBar.checked = settings.countdownDisplayMode !== "floatingWindow";
   elements.countdownFloatingWindow.checked = settings.countdownDisplayMode === "floatingWindow";
+  elements.restModeOptions.forEach(option => {
+    option.checked = option.value === normalizeRestMode(settings.restMode);
+  });
   elements.autoStartNext.checked = settings.autoStartNext;
   elements.soundEnabled.checked = settings.soundEnabled;
   elements.notificationsEnabled.checked = settings.notificationsEnabled;
+
+  const restrictToRestMode = isStrictRestActive(snapshot);
+  [
+    elements.focusMinutes,
+    elements.shortBreakMinutes,
+    elements.longBreakMinutes,
+    elements.sessionsBeforeLongBreak,
+    elements.autoStartNext,
+    elements.soundEnabled,
+    elements.notificationsEnabled
+  ].forEach(element => {
+    element.disabled = restrictToRestMode;
+  });
 }
 
 function renderNotice(notice) {
@@ -269,4 +332,15 @@ function renderNotice(notice) {
   elements.attentionActionButton.textContent = notice.actionLabel || "回到专注";
   elements.attentionActionButton.hidden = !notice.requiresAcknowledgement;
   elements.attentionBanner.hidden = false;
+}
+
+function isStrictRestActive(nextSnapshot) {
+  return nextSnapshot.running
+    && nextSnapshot.settings.restMode === "strict"
+    && (nextSnapshot.phase === "shortBreak" || nextSnapshot.phase === "longBreak");
+}
+
+function isRestActive(nextSnapshot) {
+  return (nextSnapshot.phase === "shortBreak" || nextSnapshot.phase === "longBreak")
+    && (nextSnapshot.running || Boolean(nextSnapshot.notice));
 }

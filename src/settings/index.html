@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>本地番茄钟设置</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="settings-shell">
+      <section class="settings-panel" aria-label="设置">
+        <header class="settings-header">
+          <h1 id="settingsTitle">设置</h1>
+          <button id="settingsCloseButton" class="settings-close" type="button" title="关闭设置">×</button>
+        </header>
+        <form id="settingsForm" class="settings-form">
+          <label>
+            <span>专注时长</span>
+            <input id="focusMinutes" name="focusMinutes" type="number" min="1" max="180" step="1" inputmode="numeric" />
+          </label>
+          <label>
+            <span>短休时长（分钟）</span>
+            <input id="shortBreakMinutes" name="shortBreakMinutes" type="number" min="0.01" max="60" step="any" inputmode="decimal" />
+          </label>
+          <label>
+            <span>长休时长</span>
+            <input id="longBreakMinutes" name="longBreakMinutes" type="number" min="1" max="120" step="1" inputmode="numeric" />
+          </label>
+          <label>
+            <span>长休循环</span>
+            <input id="sessionsBeforeLongBreak" name="sessionsBeforeLongBreak" type="number" min="1" max="12" step="1" inputmode="numeric" />
+          </label>
+          <fieldset class="rest-mode-field">
+            <legend>休息模式</legend>
+            <div class="rest-mode-options" role="radiogroup" aria-label="休息模式">
+              <label>
+                <input id="restModeRelaxed" name="restMode" type="radio" value="relaxed" />
+                <span>轻松模式</span>
+              </label>
+              <label>
+                <input id="restModeStrict" name="restMode" type="radio" value="strict" />
+                <span>强制模式</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="toggles">
+            <label class="toggle-row">
+              <input id="autoStartNext" name="autoStartNext" type="checkbox" />
+              <span>自动进入下一段</span>
+            </label>
+            <label class="toggle-row">
+              <input id="soundEnabled" name="soundEnabled" type="checkbox" />
+              <span>声音提醒</span>
+            </label>
+            <label class="toggle-row">
+              <input id="notificationsEnabled" name="notificationsEnabled" type="checkbox" />
+              <span>系统通知</span>
+            </label>
+          </div>
+
+          <button class="save-button" type="submit">保存设置</button>
+        </form>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -19,6 +19,7 @@ let acknowledgementInFlight = false;
 
 elements.acknowledgeButton.addEventListener("click", acknowledgeIfRequired);
 elements.noticeCard.addEventListener("pointerdown", event => {
+  bridge.reassertRestStack();
   if (event.target !== elements.acknowledgeButton) {
     acknowledgeIfRequired();
   }
