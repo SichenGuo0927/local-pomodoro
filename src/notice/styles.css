@@ -6,6 +6,8 @@
   --muted: #697586;
   --rest: #0f766e;
   --long-rest: #285a9f;
+  --accent: #c2410c;
+  --accent-dark: #9a3412;
   --line: #ddd6cc;
 }
 
@@ -17,6 +19,8 @@
     --muted: #aab6c5;
     --rest: #2dd4bf;
     --long-rest: #93c5fd;
+    --accent: #fb923c;
+    --accent-dark: #f97316;
     --line: #2c3648;
   }
 }
@@ -35,6 +39,10 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
 }
 
+button {
+  font: inherit;
+}
+
 .notice-card {
   min-height: 100vh;
   padding: 22px 24px;
@@ -48,6 +56,11 @@ body {
 .notice-card[data-notice="longBreak"] {
   border-color: color-mix(in srgb, var(--long-rest) 54%, var(--line));
   background: color-mix(in srgb, var(--long-rest) 10%, var(--panel));
+}
+
+.notice-card[data-notice="breakEnd"] {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
 }
 
 .phase-label,
@@ -80,4 +93,26 @@ h1 {
   font-weight: 760;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.acknowledge-button {
+  justify-self: start;
+  min-height: 38px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #fff7ed;
+  background: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.acknowledge-button:hover {
+  background: var(--accent-dark);
+}
+
+.acknowledge-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
 }

@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld("pomodoroApp", {
   skip() {
     return ipcRenderer.invoke("timer:skip");
   },
+  acknowledgeBreakEnd() {
+    return ipcRenderer.invoke("timer:acknowledge-break-end");
+  },
   updateSettings(settings) {
     return ipcRenderer.invoke("timer:update-settings", settings);
   },

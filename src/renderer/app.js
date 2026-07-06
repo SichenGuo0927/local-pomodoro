@@ -22,6 +22,7 @@ let snapshot = {
   totalSeconds: DEFAULT_SETTINGS.focusMinutes * 60,
   remainingSeconds: DEFAULT_SETTINGS.focusMinutes * 60,
   completedFocusInCycle: 0,
+  awaitingBreakAcknowledgement: false,
   nextPhaseLabel: "短休",
   focusNumber: 1,
   notice: null,
@@ -40,6 +41,7 @@ const elements = {
   attentionBanner: document.querySelector("#attentionBanner"),
   attentionTitle: document.querySelector("#attentionTitle"),
   attentionBody: document.querySelector("#attentionBody"),
+  attentionActionButton: document.querySelector("#attentionActionButton"),
   settingsToggleButton: document.querySelector("#settingsToggleButton"),
   settingsDialog: document.querySelector("#settingsDialog"),
   settingsPanel: document.querySelector("#settingsPanel"),
@@ -69,7 +71,11 @@ bridge.getState().then(nextSnapshot => {
 
 function bindEvents() {
   elements.startPauseButton.addEventListener("click", async () => {
-    snapshot = snapshot.running ? await bridge.pause() : await bridge.start();
+    if (snapshot.awaitingBreakAcknowledgement) {
+      snapshot = await bridge.acknowledgeBreakEnd();
+    } else {
+      snapshot = snapshot.running ? await bridge.pause() : await bridge.start();
+    }
     render(snapshot);
   });
 
@@ -80,6 +86,11 @@ function bindEvents() {
 
   elements.skipButton.addEventListener("click", async () => {
     snapshot = await bridge.skip();
+    render(snapshot);
+  });
+
+  elements.attentionActionButton.addEventListener("click", async () => {
+    snapshot = await bridge.acknowledgeBreakEnd();
     render(snapshot);
   });
 
@@ -193,7 +204,9 @@ function render(nextSnapshot) {
   elements.timeDisplay.textContent = formatTime(nextSnapshot.remainingSeconds);
   elements.nextLabel.textContent = `下一段：${nextSnapshot.nextPhaseLabel}`;
   elements.progressBar.style.width = `${Math.min(Math.max(progress, 0), 100)}%`;
-  elements.startPauseButton.textContent = nextSnapshot.running ? "⏸ 暂停" : "▶ 开始";
+  elements.startPauseButton.textContent = nextSnapshot.awaitingBreakAcknowledgement
+    ? "回到专注"
+    : (nextSnapshot.running ? "⏸ 暂停" : "▶ 开始");
   renderNotice(nextSnapshot.notice);
   if (!elements.settingsDialog.open) {
     renderSettings(settings);
@@ -214,11 +227,14 @@ function renderNotice(notice) {
   if (!notice) {
     elements.attentionBanner.hidden = true;
     elements.attentionBanner.removeAttribute("data-notice");
+    elements.attentionActionButton.hidden = true;
     return;
   }
 
   elements.attentionBanner.dataset.notice = notice.type || "";
   elements.attentionTitle.textContent = notice.title;
   elements.attentionBody.textContent = notice.body;
+  elements.attentionActionButton.textContent = notice.actionLabel || "回到专注";
+  elements.attentionActionButton.hidden = !notice.requiresAcknowledgement;
   elements.attentionBanner.hidden = false;
 }

@@ -10,25 +10,51 @@ const elements = {
   phaseLabel: document.querySelector("#phaseLabel"),
   noticeTitle: document.querySelector("#noticeTitle"),
   noticeBody: document.querySelector("#noticeBody"),
-  timeDisplay: document.querySelector("#timeDisplay")
+  timeDisplay: document.querySelector("#timeDisplay"),
+  acknowledgeButton: document.querySelector("#acknowledgeButton")
 };
+
+let snapshot = null;
+let acknowledgementInFlight = false;
+
+elements.acknowledgeButton.addEventListener("click", acknowledgeIfRequired);
+elements.noticeCard.addEventListener("pointerdown", event => {
+  if (event.target !== elements.acknowledgeButton) {
+    acknowledgeIfRequired();
+  }
+});
+document.addEventListener("keydown", acknowledgeIfRequired);
 
 bridge.onState(render);
 bridge.getState().then(render);
 
-function render(snapshot) {
-  const notice = snapshot.notice || {
-    type: snapshot.phase,
-    title: snapshot.phaseTitle,
+function render(nextSnapshot) {
+  snapshot = nextSnapshot;
+  acknowledgementInFlight = false;
+
+  const notice = nextSnapshot.notice || {
+    type: nextSnapshot.phase,
+    title: nextSnapshot.phaseTitle,
     body: ""
   };
 
-  document.title = `${formatTime(snapshot.remainingSeconds)} - ${notice.title}`;
-  elements.noticeCard.dataset.notice = notice.type || snapshot.phase;
-  elements.phaseLabel.textContent = PHASES[snapshot.phase] || snapshot.phaseTitle;
+  document.title = `${formatTime(nextSnapshot.remainingSeconds)} - ${notice.title}`;
+  elements.noticeCard.dataset.notice = notice.type || nextSnapshot.phase;
+  elements.phaseLabel.textContent = PHASES[nextSnapshot.phase] || nextSnapshot.phaseTitle;
   elements.noticeTitle.textContent = notice.title;
   elements.noticeBody.textContent = notice.body;
-  elements.timeDisplay.textContent = formatTime(snapshot.remainingSeconds);
+  elements.timeDisplay.textContent = formatTime(nextSnapshot.remainingSeconds);
+  elements.acknowledgeButton.textContent = notice.actionLabel || "回到专注";
+  elements.acknowledgeButton.hidden = !notice.requiresAcknowledgement;
+}
+
+async function acknowledgeIfRequired() {
+  if (acknowledgementInFlight || !snapshot?.notice?.requiresAcknowledgement) {
+    return;
+  }
+
+  acknowledgementInFlight = true;
+  render(await bridge.acknowledgeBreakEnd());
 }
 
 function formatTime(seconds) {

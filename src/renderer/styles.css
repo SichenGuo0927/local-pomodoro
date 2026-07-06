@@ -130,6 +130,7 @@ h2 {
   border-radius: 8px;
   padding: 12px 14px;
   display: grid;
+  align-items: start;
   gap: 4px;
   background: color-mix(in srgb, var(--rest) 13%, var(--panel));
 }
@@ -150,6 +151,28 @@ h2 {
 .attention-banner[data-notice="longBreak"] {
   border-color: color-mix(in srgb, var(--long-rest) 52%, var(--line));
   background: color-mix(in srgb, var(--long-rest) 13%, var(--panel));
+}
+
+.attention-banner[data-notice="breakEnd"] {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+
+.attention-action {
+  justify-self: start;
+  min-height: 34px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #fff7ed;
+  background: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.attention-action:hover {
+  background: var(--accent-dark);
 }
 
 .timer-panel,
@@ -325,6 +348,7 @@ h2 {
 
 .settings-form input:focus-visible,
 .settings-toggle:focus-visible,
+.attention-action:focus-visible,
 .primary-button:focus-visible,
 .icon-button:focus-visible,
 .settings-close:focus-visible,
