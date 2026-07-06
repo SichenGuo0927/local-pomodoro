@@ -72,16 +72,28 @@ bridge.getState().then(nextSnapshot => {
 
 function bindEvents() {
   elements.startPauseButton.addEventListener("click", async () => {
+    if (isStrictRestActive(snapshot)) {
+      return;
+    }
+
     snapshot = snapshot.running ? await bridge.pause() : await bridge.start();
     render(snapshot);
   });
 
   elements.resetButton.addEventListener("click", async () => {
+    if (isStrictRestActive(snapshot)) {
+      return;
+    }
+
     snapshot = await bridge.reset();
     render(snapshot);
   });
 
   elements.skipButton.addEventListener("click", async () => {
+    if (isStrictRestActive(snapshot)) {
+      return;
+    }
+
     snapshot = await bridge.skip();
     render(snapshot);
   });
@@ -97,6 +109,7 @@ function bindEvents() {
   });
 
   elements.settingsDialog.addEventListener("close", () => {
+    bridge.setSettingsOpen(false);
     elements.settingsToggleButton.setAttribute("aria-expanded", "false");
     renderSettings(snapshot.settings);
   });
@@ -123,7 +136,12 @@ function openSettingsDialog() {
     elements.settingsDialog.setAttribute("open", "");
   }
 
-  elements.focusMinutes.focus();
+  bridge.setSettingsOpen(true);
+  if (isStrictRestActive(snapshot)) {
+    elements.restModeOptions.find(option => option.value === "relaxed")?.focus();
+  } else {
+    elements.focusMinutes.focus();
+  }
 }
 
 function closeSettingsDialog() {
@@ -133,6 +151,7 @@ function closeSettingsDialog() {
   }
 
   elements.settingsDialog.removeAttribute("open");
+  bridge.setSettingsOpen(false);
   elements.settingsToggleButton.setAttribute("aria-expanded", "false");
   renderSettings(snapshot.settings);
 }
@@ -191,11 +210,13 @@ function formatTime(seconds) {
 
 function render(nextSnapshot) {
   const settings = nextSnapshot.settings;
+  const strictRestActive = isStrictRestActive(nextSnapshot);
   const progress = nextSnapshot.totalSeconds === 0
     ? 0
     : ((nextSnapshot.totalSeconds - nextSnapshot.remainingSeconds) / nextSnapshot.totalSeconds) * 100;
 
   document.body.dataset.phase = nextSnapshot.phase;
+  document.body.dataset.strictRest = strictRestActive ? "true" : "false";
   document.title = `${formatTime(nextSnapshot.remainingSeconds)} - ${PHASES[nextSnapshot.phase]}`;
   elements.phaseLabel.textContent = nextSnapshot.phaseTitle;
   elements.cyclePill.textContent = `${nextSnapshot.focusNumber}/${settings.sessionsBeforeLongBreak}`;
@@ -203,6 +224,9 @@ function render(nextSnapshot) {
   elements.nextLabel.textContent = `下一段：${nextSnapshot.nextPhaseLabel}`;
   elements.progressBar.style.width = `${Math.min(Math.max(progress, 0), 100)}%`;
   elements.startPauseButton.textContent = nextSnapshot.running ? "⏸ 暂停" : "▶ 开始";
+  elements.startPauseButton.disabled = strictRestActive;
+  elements.resetButton.disabled = strictRestActive;
+  elements.skipButton.disabled = strictRestActive;
   renderNotice(nextSnapshot.notice);
   if (!elements.settingsDialog.open) {
     renderSettings(settings);
@@ -220,6 +244,19 @@ function renderSettings(settings) {
   elements.autoStartNext.checked = settings.autoStartNext;
   elements.soundEnabled.checked = settings.soundEnabled;
   elements.notificationsEnabled.checked = settings.notificationsEnabled;
+
+  const restrictToRestMode = isStrictRestActive(snapshot);
+  [
+    elements.focusMinutes,
+    elements.shortBreakMinutes,
+    elements.longBreakMinutes,
+    elements.sessionsBeforeLongBreak,
+    elements.autoStartNext,
+    elements.soundEnabled,
+    elements.notificationsEnabled
+  ].forEach(element => {
+    element.disabled = restrictToRestMode;
+  });
 }
 
 function renderNotice(notice) {
@@ -233,4 +270,10 @@ function renderNotice(notice) {
   elements.attentionTitle.textContent = notice.title;
   elements.attentionBody.textContent = notice.body;
   elements.attentionBanner.hidden = false;
+}
+
+function isStrictRestActive(nextSnapshot) {
+  return nextSnapshot.running
+    && nextSnapshot.settings.restMode === "strict"
+    && (nextSnapshot.phase === "shortBreak" || nextSnapshot.phase === "longBreak");
 }

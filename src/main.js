@@ -90,6 +90,8 @@ let isQuitting = false;
 let powerSaveBlockerId = null;
 let notice = null;
 let restBlockerWindows = new Map();
+let settingsDialogOpen = false;
+let noticeHiddenForSettingsDialog = false;
 let trayMenuOpen = false;
 let activeTrayMenu = null;
 let pendingTrayClickTimer = null;
@@ -132,7 +134,20 @@ function createWindow() {
     }
 
     event.preventDefault();
+    if (shouldShowRestBlockers()) {
+      showStrictRestAccessSurface({ focus: true });
+      return;
+    }
+
     mainWindow.hide();
+  });
+  mainWindow.on("minimize", event => {
+    if (!shouldShowRestBlockers()) {
+      return;
+    }
+
+    event.preventDefault();
+    showStrictRestAccessSurface({ focus: true });
   });
 }
 
@@ -165,6 +180,7 @@ function updateTray() {
 function buildTrayMenu() {
   const snapshot = getSnapshot();
   const status = `${snapshot.phaseTitle} ${formatTime(snapshot.remainingSeconds)}`;
+  const strictRestLocked = shouldShowRestBlockers();
   return Menu.buildFromTemplate([
     {
       label: `当前循环 ${snapshot.focusNumber}/${settings.sessionsBeforeLongBreak}`,
@@ -182,7 +198,13 @@ function buildTrayMenu() {
     { type: "separator" },
     {
       label: snapshot.running ? "暂停" : "开始",
+      enabled: !strictRestLocked,
       click: () => {
+        if (shouldShowRestBlockers()) {
+          syncRestBlockers();
+          return;
+        }
+
         if (state.running) {
           pauseTimer();
         } else {
@@ -192,17 +214,34 @@ function buildTrayMenu() {
     },
     {
       label: "停止并重置",
-      click: resetCurrentPhase
+      enabled: !strictRestLocked,
+      click: () => {
+        if (shouldShowRestBlockers()) {
+          syncRestBlockers();
+          return;
+        }
+
+        resetCurrentPhase();
+      }
     },
     {
       label: "跳到下一段",
-      click: () => completePhase({ manual: true })
+      enabled: !strictRestLocked,
+      click: () => {
+        if (shouldShowRestBlockers()) {
+          syncRestBlockers();
+          return;
+        }
+
+        completePhase({ manual: true });
+      }
     },
     { type: "separator" },
     {
       label: "自动进入下一段",
       type: "checkbox",
       checked: settings.autoStartNext,
+      enabled: !strictRestLocked,
       click: menuItem => {
         updateSettings({ ...settings, autoStartNext: menuItem.checked }, { reset: false });
       }
@@ -211,6 +250,7 @@ function buildTrayMenu() {
       label: "声音提醒",
       type: "checkbox",
       checked: settings.soundEnabled,
+      enabled: !strictRestLocked,
       click: menuItem => {
         updateSettings({ ...settings, soundEnabled: menuItem.checked }, { reset: false });
       }
@@ -219,6 +259,7 @@ function buildTrayMenu() {
       label: "系统通知",
       type: "checkbox",
       checked: settings.notificationsEnabled,
+      enabled: !strictRestLocked,
       click: menuItem => {
         updateSettings({ ...settings, notificationsEnabled: menuItem.checked }, { reset: false });
       }
@@ -288,6 +329,11 @@ function clearPendingTrayClick() {
 
 function toggleTimerFromTrayShortcut() {
   closeTrayMenu();
+  if (shouldShowRestBlockers()) {
+    syncRestBlockers();
+    return;
+  }
+
   if (state.running) {
     pauseTimer();
   } else {
@@ -300,6 +346,11 @@ function showMainWindow(options = {}) {
 
   if (!mainWindow || mainWindow.isDestroyed()) {
     createWindow();
+    return;
+  }
+
+  if (shouldShowRestBlockers()) {
+    showStrictRestAccessSurface({ focus: true });
     return;
   }
 
@@ -429,8 +480,15 @@ function advancePhase(completedPhase) {
 }
 
 function updateSettings(nextSettings, options = { reset: true }) {
+  const wasStrictRestLocked = shouldShowRestBlockers();
   settings = normalizeSettings(nextSettings);
   saveSettings(settings);
+
+  if (wasStrictRestLocked) {
+    syncRestBlockers();
+    broadcastState();
+    return getSnapshot();
+  }
 
   if (options.reset) {
     state.totalSeconds = durationForPhase(state.phase);
@@ -535,6 +593,13 @@ function showNoticeWindow() {
     noticeWindow.loadFile(path.join(__dirname, "notice", "index.html"));
     noticeWindow.once("ready-to-show", () => {
       if (noticeWindow && !noticeWindow.isDestroyed()) {
+        if (settingsDialogOpen && shouldShowRestBlockers()) {
+          noticeHiddenForSettingsDialog = true;
+          noticeWindow.hide();
+          raiseMainWindowAboveBlockers({ focus: true });
+          return;
+        }
+
         noticeWindow.show();
         raiseNoticeWindowAboveBlockers();
       }
@@ -554,6 +619,13 @@ function showNoticeWindow() {
   }
 
   if (noticeWindow && !noticeWindow.isDestroyed()) {
+    if (settingsDialogOpen && shouldShowRestBlockers()) {
+      noticeHiddenForSettingsDialog = true;
+      noticeWindow.hide();
+      raiseMainWindowAboveBlockers({ focus: true });
+      return;
+    }
+
     noticeWindow.flashFrame(true);
     raiseNoticeWindowAboveBlockers();
     setTimeout(() => {
@@ -567,8 +639,11 @@ function showNoticeWindow() {
 function syncRestBlockers() {
   if (!shouldShowRestBlockers()) {
     closeRestBlockers();
+    restoreStrictRestAccessSurface();
     return;
   }
+
+  showStrictRestAccessSurface();
 
   const displays = screen.getAllDisplays();
   const activeDisplayIds = new Set(displays.map(display => display.id));
@@ -589,7 +664,7 @@ function syncRestBlockers() {
     restBlockerWindows.set(display.id, createRestBlockerWindow(display));
   });
 
-  raiseNoticeWindowAboveBlockers({ focus: false });
+  raiseStrictRestAllowedWindows();
 }
 
 function shouldShowRestBlockers() {
@@ -636,7 +711,7 @@ function createRestBlockerWindow(display) {
       blockerWindow.show();
       blockerWindow.focus();
       blockerWindow.moveTop();
-      raiseNoticeWindowAboveBlockers({ focus: false });
+      raiseStrictRestAllowedWindows();
     }
   });
   blockerWindow.webContents.on("before-input-event", event => {
@@ -680,6 +755,93 @@ function maintainRestBlockerWindow(blockerWindow, display, options = {}) {
   }
 }
 
+function showStrictRestAccessSurface(options = {}) {
+  const { focus = false } = options;
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+  }
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  setMainWindowStrictChrome(true);
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  mainWindow.show();
+  mainWindow.moveTop();
+
+  if (focus) {
+    mainWindow.focus();
+  }
+}
+
+function restoreStrictRestAccessSurface() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  setMainWindowStrictChrome(false);
+  mainWindow.setAlwaysOnTop(false);
+  mainWindow.setVisibleOnAllWorkspaces(false);
+}
+
+function setMainWindowStrictChrome(isLocked) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (typeof mainWindow.setClosable === "function") {
+    mainWindow.setClosable(!isLocked);
+  }
+  if (typeof mainWindow.setMinimizable === "function") {
+    mainWindow.setMinimizable(!isLocked);
+  }
+  if (typeof mainWindow.setMaximizable === "function") {
+    mainWindow.setMaximizable(!isLocked);
+  }
+  if (typeof mainWindow.setMovable === "function") {
+    mainWindow.setMovable(!isLocked);
+  }
+  if (process.platform === "darwin" && typeof mainWindow.setWindowButtonVisibility === "function") {
+    mainWindow.setWindowButtonVisibility(!isLocked);
+  }
+}
+
+function raiseStrictRestAllowedWindows(options = {}) {
+  const { focusMain = false } = options;
+
+  raiseMainWindowAboveBlockers({ focus: focusMain || settingsDialogOpen });
+  if (settingsDialogOpen) {
+    if (noticeWindow && !noticeWindow.isDestroyed()) {
+      noticeHiddenForSettingsDialog = true;
+      noticeWindow.hide();
+    }
+    return;
+  }
+
+  raiseNoticeWindowAboveBlockers({ focus: false });
+}
+
+function raiseMainWindowAboveBlockers(options = {}) {
+  const { focus = false } = options;
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+  mainWindow.moveTop();
+  if (focus) {
+    mainWindow.focus();
+  }
+}
+
 function raiseNoticeWindowAboveBlockers(options = {}) {
   const { focus = true } = options;
 
@@ -687,10 +849,75 @@ function raiseNoticeWindowAboveBlockers(options = {}) {
     return;
   }
 
+  if (settingsDialogOpen && shouldShowRestBlockers()) {
+    noticeHiddenForSettingsDialog = true;
+    noticeWindow.hide();
+    return;
+  }
+
+  positionNoticeWindowForStrictRest();
   noticeWindow.setAlwaysOnTop(true, "screen-saver");
   noticeWindow.moveTop();
   if (focus) {
     noticeWindow.focus();
+  }
+}
+
+function positionNoticeWindowForStrictRest() {
+  if (!shouldShowRestBlockers() || !mainWindow || mainWindow.isDestroyed() || !noticeWindow || noticeWindow.isDestroyed()) {
+    return;
+  }
+
+  const mainBounds = mainWindow.getBounds();
+  const noticeBounds = noticeWindow.getBounds();
+  const display = screen.getDisplayMatching(mainBounds);
+  const workArea = display.workArea;
+  const noticeX = clampNumber(
+    mainBounds.x + Math.round((mainBounds.width - noticeBounds.width) / 2),
+    workArea.x,
+    workArea.x + workArea.width - noticeBounds.width
+  );
+  const noticeY = clampNumber(
+    mainBounds.y + mainBounds.height - noticeBounds.height - 24,
+    workArea.y,
+    workArea.y + workArea.height - noticeBounds.height
+  );
+
+  noticeWindow.setPosition(noticeX, noticeY, false);
+}
+
+function setSettingsDialogOpen(isOpen) {
+  settingsDialogOpen = Boolean(isOpen);
+
+  if (!shouldShowRestBlockers()) {
+    if (!settingsDialogOpen) {
+      restoreNoticeHiddenForSettingsDialog();
+    }
+    return getSnapshot();
+  }
+
+  showStrictRestAccessSurface({ focus: settingsDialogOpen });
+  if (settingsDialogOpen) {
+    if (noticeWindow && !noticeWindow.isDestroyed()) {
+      noticeHiddenForSettingsDialog = true;
+      noticeWindow.hide();
+    }
+  } else {
+    noticeHiddenForSettingsDialog = false;
+    showNoticeForPhase(state.phase);
+  }
+  syncRestBlockers();
+  return getSnapshot();
+}
+
+function restoreNoticeHiddenForSettingsDialog() {
+  if (!noticeHiddenForSettingsDialog) {
+    return;
+  }
+
+  noticeHiddenForSettingsDialog = false;
+  if (notice && isBreakPhase(state.phase)) {
+    showNoticeWindow();
   }
 }
 
@@ -939,12 +1166,17 @@ function clampDecimalMinutes(value, min, max, fallback) {
   return Math.min(Math.max(parsed, min), max);
 }
 
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 ipcMain.handle("timer:get-state", async () => getSnapshot());
-ipcMain.handle("timer:start", async () => startTimer());
-ipcMain.handle("timer:pause", async () => pauseTimer());
-ipcMain.handle("timer:reset", async () => resetCurrentPhase());
-ipcMain.handle("timer:skip", async () => completePhase({ manual: true }));
+ipcMain.handle("timer:start", async () => (shouldShowRestBlockers() ? getSnapshot() : startTimer()));
+ipcMain.handle("timer:pause", async () => (shouldShowRestBlockers() ? getSnapshot() : pauseTimer()));
+ipcMain.handle("timer:reset", async () => (shouldShowRestBlockers() ? getSnapshot() : resetCurrentPhase()));
+ipcMain.handle("timer:skip", async () => (shouldShowRestBlockers() ? getSnapshot() : completePhase({ manual: true })));
 ipcMain.handle("timer:update-settings", async (_event, nextSettings) => updateSettings(nextSettings, { reset: true }));
+ipcMain.handle("settings:set-open", async (_event, isOpen) => setSettingsDialogOpen(isOpen));
 ipcMain.handle("window:show", async () => showMainWindow());
 
 app.whenReady().then(() => {
@@ -963,6 +1195,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  restoreStrictRestAccessSurface();
   closeRestBlockers();
 });
 

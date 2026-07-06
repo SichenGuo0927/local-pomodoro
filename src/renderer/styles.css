@@ -231,6 +231,16 @@ h2 {
   background: var(--accent-dark);
 }
 
+.primary-button:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.primary-button:disabled:hover {
+  background: var(--accent);
+}
+
 .icon-button {
   width: 46px;
   height: 46px;
@@ -244,6 +254,10 @@ h2 {
 
 .icon-button:hover {
   background: color-mix(in srgb, var(--line) 38%, transparent);
+}
+
+.icon-button:disabled:hover {
+  background: transparent;
 }
 
 .settings-dialog {
@@ -321,6 +335,11 @@ h2 {
   color: var(--text);
   background: color-mix(in srgb, var(--panel) 92%, var(--bg));
   font-size: 15px;
+}
+
+.settings-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .settings-form input:focus-visible,
