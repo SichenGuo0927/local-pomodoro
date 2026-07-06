@@ -27,6 +27,9 @@ const DEFAULT_SETTINGS = {
   notificationsEnabled: true
 };
 const REST_MODES = new Set(["relaxed", "strict"]);
+const REST_BLOCKER_URL = `data:text/html;charset=utf-8,${encodeURIComponent(
+  "<!doctype html><html><body style=\"margin:0;background:rgba(0,0,0,0.01);\"></body></html>"
+)}`;
 
 const PHASES = {
   focus: {
@@ -86,7 +89,7 @@ let settings = { ...DEFAULT_SETTINGS };
 let isQuitting = false;
 let powerSaveBlockerId = null;
 let notice = null;
-let restOverlayWindows = new Map();
+let restBlockerWindows = new Map();
 let trayMenuOpen = false;
 let activeTrayMenu = null;
 let pendingTrayClickTimer = null;
@@ -326,7 +329,10 @@ function startTimer() {
   state.endsAt = Date.now() + state.remainingSeconds * 1000;
   state.intervalId = setInterval(tick, 1000);
   startPowerSaveBlocker();
-  syncRestOverlays();
+  if (shouldShowRestBlockers() && !notice) {
+    showNoticeForPhase(state.phase);
+  }
+  syncRestBlockers();
   tick();
   return getSnapshot();
 }
@@ -342,7 +348,7 @@ function pauseTimer() {
   state.running = false;
   state.endsAt = null;
   stopPowerSaveBlocker();
-  syncRestOverlays();
+  syncRestBlockers();
   broadcastState();
   return getSnapshot();
 }
@@ -356,7 +362,7 @@ function resetCurrentPhase() {
   state.remainingSeconds = state.totalSeconds;
   state.endsAt = null;
   stopPowerSaveBlocker();
-  syncRestOverlays();
+  syncRestBlockers();
   broadcastState();
   return getSnapshot();
 }
@@ -379,7 +385,7 @@ function completePhase({ manual }) {
   state.remainingSeconds = 0;
   state.endsAt = null;
   stopPowerSaveBlocker();
-  syncRestOverlays();
+  syncRestBlockers();
   broadcastState();
 
   advancePhase(completedPhase);
@@ -530,7 +536,7 @@ function showNoticeWindow() {
     noticeWindow.once("ready-to-show", () => {
       if (noticeWindow && !noticeWindow.isDestroyed()) {
         noticeWindow.show();
-        noticeWindow.focus();
+        raiseNoticeWindowAboveBlockers();
       }
     });
     noticeWindow.webContents.once("did-finish-load", broadcastState);
@@ -540,6 +546,7 @@ function showNoticeWindow() {
       }
       event.preventDefault();
       noticeWindow.show();
+      raiseNoticeWindowAboveBlockers();
     });
   } else {
     noticeWindow.show();
@@ -548,7 +555,7 @@ function showNoticeWindow() {
 
   if (noticeWindow && !noticeWindow.isDestroyed()) {
     noticeWindow.flashFrame(true);
-    noticeWindow.setAlwaysOnTop(true, "floating");
+    raiseNoticeWindowAboveBlockers();
     setTimeout(() => {
       if (noticeWindow && !noticeWindow.isDestroyed()) {
         noticeWindow.flashFrame(false);
@@ -557,33 +564,35 @@ function showNoticeWindow() {
   }
 }
 
-function syncRestOverlays() {
-  if (!shouldShowRestOverlays()) {
-    closeRestOverlays();
+function syncRestBlockers() {
+  if (!shouldShowRestBlockers()) {
+    closeRestBlockers();
     return;
   }
 
   const displays = screen.getAllDisplays();
   const activeDisplayIds = new Set(displays.map(display => display.id));
 
-  restOverlayWindows.forEach((overlayWindow, displayId) => {
-    if (!activeDisplayIds.has(displayId) || overlayWindow.isDestroyed()) {
-      destroyRestOverlay(displayId);
+  restBlockerWindows.forEach((blockerWindow, displayId) => {
+    if (!activeDisplayIds.has(displayId) || blockerWindow.isDestroyed()) {
+      destroyRestBlocker(displayId);
     }
   });
 
   displays.forEach(display => {
-    const overlayWindow = restOverlayWindows.get(display.id);
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      maintainRestOverlayWindow(overlayWindow, display);
+    const blockerWindow = restBlockerWindows.get(display.id);
+    if (blockerWindow && !blockerWindow.isDestroyed()) {
+      maintainRestBlockerWindow(blockerWindow, display);
       return;
     }
 
-    restOverlayWindows.set(display.id, createRestOverlayWindow(display));
+    restBlockerWindows.set(display.id, createRestBlockerWindow(display));
   });
+
+  raiseNoticeWindowAboveBlockers({ focus: false });
 }
 
-function shouldShowRestOverlays() {
+function shouldShowRestBlockers() {
   return settings.restMode === "strict" && state.running && isBreakPhase(state.phase);
 }
 
@@ -591,14 +600,17 @@ function isBreakPhase(phase) {
   return phase === "shortBreak" || phase === "longBreak";
 }
 
-function createRestOverlayWindow(display) {
-  // Strict mode is an Electron overlay over each display, not a global OS mouse lock.
-  // It captures normal desktop mouse input while the break timer is running.
-  const overlayWindow = new BrowserWindow({
+function createRestBlockerWindow(display) {
+  // Strict mode uses near-transparent Electron blocker windows, not a global OS mouse lock.
+  // They sit behind the compact reminder window and capture normal input outside it.
+  const blockerWindow = new BrowserWindow({
     ...display.bounds,
-    title: "本地番茄钟强制休息",
+    title: "本地番茄钟休息输入拦截",
     show: false,
     frame: false,
+    transparent: true,
+    opacity: 0.01,
+    hasShadow: false,
     resizable: false,
     movable: false,
     minimizable: false,
@@ -607,83 +619,91 @@ function createRestOverlayWindow(display) {
     closable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? "#111827" : "#f7f4ee",
+    backgroundColor: "#00000000",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false
     }
   });
 
-  overlayWindow.setMenuBarVisibility(false);
-  maintainRestOverlayWindow(overlayWindow, display, { show: false });
-  overlayWindow.loadFile(path.join(__dirname, "notice", "index.html"));
-  overlayWindow.once("ready-to-show", () => {
-    if (shouldShowRestOverlays() && !overlayWindow.isDestroyed()) {
-      overlayWindow.show();
-      overlayWindow.focus();
-      overlayWindow.moveTop();
+  blockerWindow.setMenuBarVisibility(false);
+  blockerWindow.setOpacity(0.01);
+  maintainRestBlockerWindow(blockerWindow, display, { show: false });
+  blockerWindow.loadURL(REST_BLOCKER_URL);
+  blockerWindow.once("ready-to-show", () => {
+    if (shouldShowRestBlockers() && !blockerWindow.isDestroyed()) {
+      blockerWindow.show();
+      blockerWindow.focus();
+      blockerWindow.moveTop();
+      raiseNoticeWindowAboveBlockers({ focus: false });
     }
   });
-  overlayWindow.webContents.once("did-finish-load", () => {
-    if (!overlayWindow.isDestroyed()) {
-      overlayWindow.webContents.send("timer-state", getSnapshot());
-    }
+  blockerWindow.webContents.on("before-input-event", event => {
+    event.preventDefault();
   });
-  overlayWindow.webContents.on("before-input-event", (event, input) => {
-    if (input.type === "keyDown" && (input.key === "Escape" || (input.meta && input.key.toLowerCase() === "w"))) {
-      event.preventDefault();
-    }
-  });
-  overlayWindow.on("close", event => {
-    if (isQuitting || !shouldShowRestOverlays()) {
+  blockerWindow.on("close", event => {
+    if (isQuitting || !shouldShowRestBlockers()) {
       return;
     }
 
     event.preventDefault();
-    overlayWindow.show();
-    overlayWindow.focus();
+    blockerWindow.show();
+    blockerWindow.focus();
   });
-  overlayWindow.on("closed", () => {
-    restOverlayWindows.forEach((windowForDisplay, displayId) => {
-      if (windowForDisplay === overlayWindow) {
-        restOverlayWindows.delete(displayId);
+  blockerWindow.on("closed", () => {
+    restBlockerWindows.forEach((windowForDisplay, displayId) => {
+      if (windowForDisplay === blockerWindow) {
+        restBlockerWindows.delete(displayId);
       }
     });
   });
 
-  return overlayWindow;
+  return blockerWindow;
 }
 
-function maintainRestOverlayWindow(overlayWindow, display, options = {}) {
+function maintainRestBlockerWindow(blockerWindow, display, options = {}) {
   const { show = true } = options;
 
-  overlayWindow.setBounds(display.bounds);
-  overlayWindow.setAlwaysOnTop(true, "screen-saver");
-  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWindow.setIgnoreMouseEvents(false);
-  if (process.platform === "darwin" && typeof overlayWindow.setWindowButtonVisibility === "function") {
-    overlayWindow.setWindowButtonVisibility(false);
+  blockerWindow.setBounds(display.bounds);
+  blockerWindow.setAlwaysOnTop(true, "floating");
+  blockerWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  blockerWindow.setIgnoreMouseEvents(false);
+  if (process.platform === "darwin" && typeof blockerWindow.setWindowButtonVisibility === "function") {
+    blockerWindow.setWindowButtonVisibility(false);
   }
-  if (show && !overlayWindow.isVisible()) {
-    overlayWindow.show();
+  if (show && !blockerWindow.isVisible()) {
+    blockerWindow.show();
   }
   if (show) {
-    overlayWindow.moveTop();
+    blockerWindow.moveTop();
   }
 }
 
-function closeRestOverlays() {
-  restOverlayWindows.forEach((_overlayWindow, displayId) => destroyRestOverlay(displayId));
-  restOverlayWindows = new Map();
+function raiseNoticeWindowAboveBlockers(options = {}) {
+  const { focus = true } = options;
+
+  if (!noticeWindow || noticeWindow.isDestroyed()) {
+    return;
+  }
+
+  noticeWindow.setAlwaysOnTop(true, "screen-saver");
+  noticeWindow.moveTop();
+  if (focus) {
+    noticeWindow.focus();
+  }
 }
 
-function destroyRestOverlay(displayId) {
-  const overlayWindow = restOverlayWindows.get(displayId);
-  restOverlayWindows.delete(displayId);
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.destroy();
+function closeRestBlockers() {
+  restBlockerWindows.forEach((_blockerWindow, displayId) => destroyRestBlocker(displayId));
+  restBlockerWindows = new Map();
+}
+
+function destroyRestBlocker(displayId) {
+  const blockerWindow = restBlockerWindows.get(displayId);
+  restBlockerWindows.delete(displayId);
+  if (blockerWindow && !blockerWindow.isDestroyed()) {
+    blockerWindow.destroy();
   }
 }
 
@@ -792,7 +812,7 @@ const CRC_TABLE = Array.from({ length: 256 }, (_value, index) => {
 });
 
 function broadcastState() {
-  syncRestOverlays();
+  syncRestBlockers();
   const snapshot = getSnapshot();
   BrowserWindow.getAllWindows().forEach(window => {
     if (!window.isDestroyed()) {
@@ -934,16 +954,16 @@ app.whenReady().then(() => {
   state.remainingSeconds = state.totalSeconds;
   createTray();
   createWindow();
-  screen.on("display-added", syncRestOverlays);
-  screen.on("display-removed", syncRestOverlays);
-  screen.on("display-metrics-changed", syncRestOverlays);
+  screen.on("display-added", syncRestBlockers);
+  screen.on("display-removed", syncRestBlockers);
+  screen.on("display-metrics-changed", syncRestBlockers);
 
   app.on("activate", showMainWindow);
 });
 
 app.on("before-quit", () => {
   isQuitting = true;
-  closeRestOverlays();
+  closeRestBlockers();
 });
 
 app.on("window-all-closed", () => {
