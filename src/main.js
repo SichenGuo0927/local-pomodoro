@@ -101,6 +101,7 @@ const SOUND_SEQUENCES = {
     { name: "Ping.aiff", delay: 620, volume: 1.6 }
   ]
 };
+const BREAK_END_ALERT_REPEAT_MS = 3600;
 
 let mainWindow;
 let noticeWindow;
@@ -116,6 +117,9 @@ let pendingTrayClickTimer = null;
 let lastTrayMenuClosedAt = 0;
 let dailyStats = {};
 let pendingFocusAutoResume = null;
+let breakEndAlertIntervalId = null;
+const activeSoundTimers = new Set();
+const activeSoundPlayers = new Set();
 
 const state = {
   phase: "focus",
@@ -124,7 +128,8 @@ const state = {
   totalSeconds: minutesToSeconds(DEFAULT_SETTINGS.focusMinutes),
   remainingSeconds: minutesToSeconds(DEFAULT_SETTINGS.focusMinutes),
   endsAt: null,
-  intervalId: null
+  intervalId: null,
+  awaitingBreakAcknowledgement: false
 };
 
 function createWindow() {
@@ -203,8 +208,13 @@ function buildTrayMenu() {
     },
     { type: "separator" },
     {
-      label: snapshot.running ? "暂停" : "开始",
+      label: state.awaitingBreakAcknowledgement ? "回到专注" : (snapshot.running ? "暂停" : "开始"),
       click: () => {
+        if (state.awaitingBreakAcknowledgement) {
+          acknowledgeBreakEnd();
+          return;
+        }
+
         if (state.running) {
           pauseTimer();
         } else {
@@ -310,6 +320,11 @@ function clearPendingTrayClick() {
 
 function toggleTimerFromTrayShortcut() {
   closeTrayMenu();
+  if (state.awaitingBreakAcknowledgement) {
+    acknowledgeBreakEnd();
+    return;
+  }
+
   if (state.running) {
     pauseTimer();
   } else {
@@ -341,6 +356,10 @@ function showMainWindow(options = {}) {
 
 function startTimer(options = {}) {
   const { autoResume = false } = options;
+
+  if (state.awaitingBreakAcknowledgement) {
+    return acknowledgeBreakEnd();
+  }
 
   if (!autoResume) {
     clearPendingFocusAutoResume();
@@ -442,6 +461,10 @@ function tick() {
 
 function completePhase({ manual }) {
   clearPendingFocusAutoResume();
+  if (state.awaitingBreakAcknowledgement) {
+    return acknowledgeBreakEnd();
+  }
+
   const completedPhase = state.phase;
   clearInterval(state.intervalId);
   state.intervalId = null;
@@ -455,6 +478,13 @@ function completePhase({ manual }) {
   broadcastState();
 
   advancePhase(completedPhase);
+  if (!manual && isBreakPhase(completedPhase)) {
+    showMainWindow({ stealFocus: true });
+    beginBreakEndAcknowledgement(completedPhase);
+    broadcastState();
+    return getSnapshot();
+  }
+
   if (state.phase !== "longBreak") {
     clearNotice();
   }
@@ -494,6 +524,52 @@ function advancePhase(completedPhase) {
   state.endsAt = null;
 }
 
+function isBreakPhase(phase) {
+  return phase === "shortBreak" || phase === "longBreak";
+}
+
+function beginBreakEndAcknowledgement(completedPhase) {
+  state.awaitingBreakAcknowledgement = true;
+  notice = createBreakEndNotice(completedPhase);
+
+  if (settings.notificationsEnabled && Notification.isSupported()) {
+    new Notification({
+      title: notice.title,
+      body: notice.body,
+      silent: true
+    }).show();
+  }
+
+  if (settings.soundEnabled) {
+    startBreakEndAlert();
+  }
+
+  showNoticeWindow();
+}
+
+function createBreakEndNotice(completedPhase) {
+  const completedTitle = PHASES[completedPhase].title;
+  return {
+    type: "breakEnd",
+    title: `${completedTitle}结束`,
+    body: "准备好后，回到下一轮专注。",
+    actionLabel: "回到专注",
+    requiresAcknowledgement: true
+  };
+}
+
+function acknowledgeBreakEnd() {
+  if (!state.awaitingBreakAcknowledgement) {
+    return getSnapshot();
+  }
+
+  state.awaitingBreakAcknowledgement = false;
+  stopAllSounds();
+  clearNotice();
+  startTimer();
+  return getSnapshot();
+}
+
 function updateSettings(nextSettings, options = { reset: true }) {
   const previousSettings = settings;
   settings = normalizeSettings(nextSettings);
@@ -504,6 +580,11 @@ function updateSettings(nextSettings, options = { reset: true }) {
     state.remainingSeconds = Math.min(state.remainingSeconds, state.totalSeconds);
     resetCurrentPhase();
   } else {
+    if (state.awaitingBreakAcknowledgement && !settings.soundEnabled) {
+      stopAllSounds();
+    } else if (state.awaitingBreakAcknowledgement && settings.soundEnabled && !breakEndAlertIntervalId) {
+      startBreakEndAlert();
+    }
     broadcastState();
   }
 
@@ -542,6 +623,20 @@ function announceTransition(completedPhase, nextPhase) {
 
 function playTransitionSound(nextPhase) {
   const sequence = nextPhase === "focus" ? SOUND_SEQUENCES.focus : SOUND_SEQUENCES.rest;
+  playSoundSequence(sequence);
+}
+
+function startBreakEndAlert() {
+  stopAllSounds();
+  playBreakEndAlertPulse();
+  breakEndAlertIntervalId = setInterval(playBreakEndAlertPulse, BREAK_END_ALERT_REPEAT_MS);
+}
+
+function playBreakEndAlertPulse() {
+  playSoundSequence(SOUND_SEQUENCES.focus);
+}
+
+function playSoundSequence(sequence) {
   let played = false;
 
   sequence.forEach(({ name, delay, volume }) => {
@@ -551,18 +646,51 @@ function playTransitionSound(nextPhase) {
     }
 
     played = true;
-    setTimeout(() => {
-      const player = spawn("afplay", ["-v", String(volume), soundPath], {
-        detached: true,
-        stdio: "ignore"
-      });
-      player.unref();
-    }, delay);
+    scheduleSoundTimer(() => spawnSoundPlayer(soundPath, volume), delay);
   });
 
   if (!played) {
-    [0, 260, 520, 780].forEach(delay => setTimeout(() => shell.beep(), delay));
+    [0, 260, 520, 780].forEach(delay => scheduleSoundTimer(() => shell.beep(), delay));
   }
+}
+
+function scheduleSoundTimer(callback, delay) {
+  const timerId = setTimeout(() => {
+    activeSoundTimers.delete(timerId);
+    callback();
+  }, delay);
+  activeSoundTimers.add(timerId);
+  return timerId;
+}
+
+function spawnSoundPlayer(soundPath, volume) {
+  const player = spawn("afplay", ["-v", String(volume), soundPath], {
+    stdio: "ignore"
+  });
+  activeSoundPlayers.add(player);
+
+  const forgetPlayer = () => {
+    activeSoundPlayers.delete(player);
+  };
+  player.once("exit", forgetPlayer);
+  player.once("error", forgetPlayer);
+}
+
+function stopAllSounds() {
+  if (breakEndAlertIntervalId) {
+    clearInterval(breakEndAlertIntervalId);
+    breakEndAlertIntervalId = null;
+  }
+
+  activeSoundTimers.forEach(timerId => clearTimeout(timerId));
+  activeSoundTimers.clear();
+
+  activeSoundPlayers.forEach(player => {
+    if (!player.killed) {
+      player.kill();
+    }
+  });
+  activeSoundPlayers.clear();
 }
 
 function showLongBreakNotice() {
@@ -586,12 +714,12 @@ function showNoticeForPhase(phase) {
 function showNoticeWindow() {
   if (!noticeWindow || noticeWindow.isDestroyed()) {
     noticeWindow = new BrowserWindow({
-      width: 360,
-      height: 220,
-      minWidth: 320,
-      minHeight: 200,
-      maxWidth: 420,
-      maxHeight: 260,
+      width: 380,
+      height: 260,
+      minWidth: 340,
+      minHeight: 220,
+      maxWidth: 440,
+      maxHeight: 320,
       title: "本地番茄钟提醒",
       show: false,
       resizable: false,
@@ -641,6 +769,8 @@ function showNoticeWindow() {
 }
 
 function clearNotice() {
+  state.awaitingBreakAcknowledgement = false;
+  stopAllSounds();
   notice = null;
   closeNoticeWindow();
 }
@@ -896,6 +1026,7 @@ function getSnapshot() {
     totalSeconds: state.totalSeconds,
     remainingSeconds: state.remainingSeconds,
     completedFocusInCycle: state.completedFocusInCycle,
+    awaitingBreakAcknowledgement: state.awaitingBreakAcknowledgement,
     nextPhaseLabel: getNextPhaseLabel(),
     focusNumber: Math.min(state.completedFocusInCycle + 1, settings.sessionsBeforeLongBreak),
     todayStats: getTodayStats(),
@@ -1095,6 +1226,7 @@ ipcMain.handle("timer:start", async () => startTimer());
 ipcMain.handle("timer:pause", async () => pauseTimer());
 ipcMain.handle("timer:reset", async () => resetCurrentPhase());
 ipcMain.handle("timer:skip", async () => completePhase({ manual: true }));
+ipcMain.handle("timer:acknowledge-break-end", async () => acknowledgeBreakEnd());
 ipcMain.handle("timer:update-settings", async (_event, nextSettings) => updateSettings(nextSettings, { reset: true }));
 ipcMain.handle("window:show", async () => showMainWindow());
 
@@ -1119,6 +1251,7 @@ app.whenReady().then(() => {
 app.on("before-quit", () => {
   isQuitting = true;
   stopPowerSaveBlocker();
+  stopAllSounds();
 });
 
 app.on("window-all-closed", () => {

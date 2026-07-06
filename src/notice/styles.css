@@ -6,6 +6,8 @@
   --muted: #697586;
   --rest: #0f766e;
   --long-rest: #285a9f;
+  --accent: #c2410c;
+  --accent-dark: #9a3412;
   --line: #ddd6cc;
 }
 
@@ -17,6 +19,8 @@
     --muted: #aab6c5;
     --rest: #2dd4bf;
     --long-rest: #93c5fd;
+    --accent: #fb923c;
+    --accent-dark: #f97316;
     --line: #2c3648;
   }
 }
@@ -30,9 +34,14 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: stretch;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+button {
+  font: inherit;
 }
 
 .notice-card {
@@ -41,6 +50,7 @@ body {
   display: grid;
   align-content: center;
   gap: 10px;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--rest) 54%, var(--line));
   background: color-mix(in srgb, var(--rest) 10%, var(--panel));
 }
@@ -48,6 +58,16 @@ body {
 .notice-card[data-notice="longBreak"] {
   border-color: color-mix(in srgb, var(--long-rest) 54%, var(--line));
   background: color-mix(in srgb, var(--long-rest) 10%, var(--panel));
+}
+
+.notice-card[data-notice="breakEnd"] {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+
+.notice-card[data-awaiting-acknowledgement="true"] {
+  gap: 12px;
+  padding-block: 28px;
 }
 
 .phase-label,
@@ -71,6 +91,7 @@ h1 {
   color: var(--muted);
   font-size: 16px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .time-display {
@@ -80,4 +101,26 @@ h1 {
   font-weight: 760;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.acknowledge-button {
+  justify-self: start;
+  min-height: 40px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #fff7ed;
+  background: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.acknowledge-button:hover {
+  background: var(--accent-dark);
+}
+
+.acknowledge-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
 }
