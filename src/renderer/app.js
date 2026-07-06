@@ -4,9 +4,11 @@ const DEFAULT_SETTINGS = {
   longBreakMinutes: 15,
   sessionsBeforeLongBreak: 4,
   autoStartNext: true,
+  restMode: "relaxed",
   soundEnabled: true,
   notificationsEnabled: true
 };
+const REST_MODES = new Set(["relaxed", "strict"]);
 
 const PHASES = {
   focus: "专注",
@@ -49,6 +51,7 @@ const elements = {
   shortBreakMinutes: document.querySelector("#shortBreakMinutes"),
   longBreakMinutes: document.querySelector("#longBreakMinutes"),
   sessionsBeforeLongBreak: document.querySelector("#sessionsBeforeLongBreak"),
+  restModeOptions: Array.from(document.querySelectorAll("input[name='restMode']")),
   autoStartNext: document.querySelector("#autoStartNext"),
   soundEnabled: document.querySelector("#soundEnabled"),
   notificationsEnabled: document.querySelector("#notificationsEnabled")
@@ -140,6 +143,7 @@ function readSettingsForm() {
     shortBreakMinutes: elements.shortBreakMinutes.value,
     longBreakMinutes: elements.longBreakMinutes.value,
     sessionsBeforeLongBreak: elements.sessionsBeforeLongBreak.value,
+    restMode: elements.restModeOptions.find(option => option.checked)?.value,
     autoStartNext: elements.autoStartNext.checked,
     soundEnabled: elements.soundEnabled.checked,
     notificationsEnabled: elements.notificationsEnabled.checked
@@ -152,10 +156,15 @@ function normalizeSettings(raw) {
     shortBreakMinutes: clampDecimalMinutes(raw.shortBreakMinutes, 1 / 60, 60, DEFAULT_SETTINGS.shortBreakMinutes),
     longBreakMinutes: clampInteger(raw.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
+    restMode: normalizeRestMode(raw.restMode),
     autoStartNext: Boolean(raw.autoStartNext),
     soundEnabled: Boolean(raw.soundEnabled),
     notificationsEnabled: Boolean(raw.notificationsEnabled)
   };
+}
+
+function normalizeRestMode(restMode) {
+  return REST_MODES.has(restMode) ? restMode : DEFAULT_SETTINGS.restMode;
 }
 
 function clampInteger(value, min, max, fallback) {
@@ -205,6 +214,9 @@ function renderSettings(settings) {
   elements.shortBreakMinutes.value = settings.shortBreakMinutes;
   elements.longBreakMinutes.value = settings.longBreakMinutes;
   elements.sessionsBeforeLongBreak.value = settings.sessionsBeforeLongBreak;
+  elements.restModeOptions.forEach(option => {
+    option.checked = option.value === normalizeRestMode(settings.restMode);
+  });
   elements.autoStartNext.checked = settings.autoStartNext;
   elements.soundEnabled.checked = settings.soundEnabled;
   elements.notificationsEnabled.checked = settings.notificationsEnabled;

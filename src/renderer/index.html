@@ -62,6 +62,19 @@
               <span>长休循环</span>
               <input id="sessionsBeforeLongBreak" name="sessionsBeforeLongBreak" type="number" min="1" max="12" step="1" inputmode="numeric" />
             </label>
+            <fieldset class="rest-mode-field">
+              <legend>休息模式</legend>
+              <div class="rest-mode-options" role="radiogroup" aria-label="休息模式">
+                <label>
+                  <input id="restModeRelaxed" name="restMode" type="radio" value="relaxed" />
+                  <span>轻松模式</span>
+                </label>
+                <label>
+                  <input id="restModeStrict" name="restMode" type="radio" value="strict" />
+                  <span>强制模式</span>
+                </label>
+              </div>
+            </fieldset>
 
             <div class="toggles">
               <label class="toggle-row">
