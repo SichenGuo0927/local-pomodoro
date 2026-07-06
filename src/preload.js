@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld("pomodoroApp", {
   setSettingsOpen(isOpen) {
     return ipcRenderer.invoke("settings:set-open", isOpen);
   },
+  openRestSettingsWindow() {
+    return ipcRenderer.invoke("settings:open-rest-window");
+  },
   showWindow() {
     return ipcRenderer.invoke("window:show");
   },

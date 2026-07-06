@@ -1,0 +1,225 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f4ee;
+  --panel: #fffdf8;
+  --text: #1f2933;
+  --muted: #697586;
+  --line: #ddd6cc;
+  --accent: #c2410c;
+  --shadow: 0 14px 36px rgba(31, 41, 51, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111827;
+    --panel: #172033;
+    --text: #f8fafc;
+    --muted: #aab6c5;
+    --line: #2c3648;
+    --accent: #fb923c;
+    --shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.settings-shell {
+  min-height: 100vh;
+  padding: 18px;
+  display: grid;
+}
+
+.settings-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: auto;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.settings-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.settings-close:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--line) 38%, transparent);
+}
+
+.settings-form {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-form input[type="number"] {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 10px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+  font-size: 15px;
+}
+
+.settings-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.settings-form input:focus-visible,
+.settings-close:focus-visible,
+.save-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.rest-mode-field {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.rest-mode-field legend {
+  padding: 0;
+}
+
+.rest-mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+}
+
+.rest-mode-options label {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  min-width: 0;
+  color: var(--muted) !important;
+  cursor: pointer;
+}
+
+.rest-mode-options input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rest-mode-options span {
+  min-height: 34px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rest-mode-options input:checked + span {
+  color: #fff7ed;
+  background: var(--accent);
+}
+
+.rest-mode-options input:focus-visible + span {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.toggles {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  padding-top: 2px;
+}
+
+.toggle-row {
+  min-height: 26px;
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 9px !important;
+  color: var(--text) !important;
+}
+
+.toggle-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+}
+
+.save-button {
+  grid-column: 1 / -1;
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff7ed;
+  background: #334155;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.save-button:hover {
+  background: #1f2937;
+}

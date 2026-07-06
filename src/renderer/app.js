@@ -122,7 +122,13 @@ function bindEvents() {
   });
 }
 
-function openSettingsDialog() {
+async function openSettingsDialog() {
+  if (isRestActive(snapshot)) {
+    snapshot = await bridge.openRestSettingsWindow();
+    render(snapshot);
+    return;
+  }
+
   if (elements.settingsDialog.open) {
     return;
   }
@@ -276,4 +282,9 @@ function isStrictRestActive(nextSnapshot) {
   return nextSnapshot.running
     && nextSnapshot.settings.restMode === "strict"
     && (nextSnapshot.phase === "shortBreak" || nextSnapshot.phase === "longBreak");
+}
+
+function isRestActive(nextSnapshot) {
+  return (nextSnapshot.phase === "shortBreak" || nextSnapshot.phase === "longBreak")
+    && (nextSnapshot.running || Boolean(nextSnapshot.notice));
 }
