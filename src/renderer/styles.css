@@ -204,6 +204,38 @@ h2 {
   transition: width 180ms linear, background-color 180ms ease;
 }
 
+.today-stats {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.today-stats-title {
+  color: var(--text);
+  font-weight: 720;
+}
+
+.today-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.today-stat strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
 .controls {
   margin-top: 18px;
   display: grid;
