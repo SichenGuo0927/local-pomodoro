@@ -6,6 +6,7 @@ const {
   nativeImage,
   nativeTheme,
   Notification,
+  powerMonitor,
   powerSaveBlocker,
   shell,
   Tray
@@ -62,6 +63,23 @@ const LONG_BREAK_NOTICE = {
   type: "longBreak",
   title: "进入长休息",
   body: "喝水，站起来走动一下。"
+};
+const FOCUS_AUTO_PAUSE_NOTICES = {
+  lockScreen: {
+    type: "focusAutoPaused",
+    title: "专注已暂停",
+    body: "检测到锁屏，专注计时已停止。"
+  },
+  suspend: {
+    type: "focusAutoPaused",
+    title: "专注已暂停",
+    body: "检测到系统休眠，专注计时已停止。"
+  },
+  sessionInactive: {
+    type: "focusAutoPaused",
+    title: "专注已暂停",
+    body: "检测到用户会话离开活跃状态，专注计时已停止。"
+  }
 };
 const SYSTEM_SOUND_DIR = "/System/Library/Sounds";
 const SOUND_SEQUENCES = {
@@ -337,6 +355,18 @@ function pauseTimer() {
   state.running = false;
   state.endsAt = null;
   stopPowerSaveBlocker();
+  broadcastState();
+  return getSnapshot();
+}
+
+function pauseFocusForSystemAway(reason) {
+  if (!state.running || state.phase !== "focus") {
+    return getSnapshot();
+  }
+
+  const pauseNotice = FOCUS_AUTO_PAUSE_NOTICES[reason] || FOCUS_AUTO_PAUSE_NOTICES.suspend;
+  pauseTimer();
+  notice = { ...pauseNotice };
   broadcastState();
   return getSnapshot();
 }
@@ -788,6 +818,9 @@ app.whenReady().then(() => {
   settings = loadSettings();
   state.totalSeconds = durationForPhase(state.phase);
   state.remainingSeconds = state.totalSeconds;
+  powerMonitor.on("lock-screen", () => pauseFocusForSystemAway("lockScreen"));
+  powerMonitor.on("suspend", () => pauseFocusForSystemAway("suspend"));
+  powerMonitor.on("user-did-resign-active", () => pauseFocusForSystemAway("sessionInactive"));
   createTray();
   createWindow();
 
@@ -796,6 +829,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  stopPowerSaveBlocker();
 });
 
 app.on("window-all-closed", () => {
