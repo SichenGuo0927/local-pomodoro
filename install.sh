@@ -2,8 +2,8 @@
 set -euo pipefail
 
 REPO="SichenGuo0927/local-pomodoro"
-VERSION="0.2.6"
-ASSET_NAME="local-pomodoro-${VERSION}-arm64.dmg"
+VERSION="0.3.0"
+ASSET_NAME="本地番茄钟-${VERSION}.dmg"
 DMG_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET_NAME}"
 INSTALL_DIR="/Applications"
 

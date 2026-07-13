@@ -4,6 +4,7 @@ const DEFAULT_SETTINGS = {
   longBreakMinutes: 15,
   sessionsBeforeLongBreak: 4,
   autoStartNext: true,
+  openAtLogin: false,
   restMode: "relaxed",
   soundEnabled: true,
   notificationsEnabled: true
@@ -28,6 +29,7 @@ const elements = {
   sessionsBeforeLongBreak: document.querySelector("#sessionsBeforeLongBreak"),
   restModeOptions: Array.from(document.querySelectorAll("input[name='restMode']")),
   autoStartNext: document.querySelector("#autoStartNext"),
+  openAtLogin: document.querySelector("#openAtLogin"),
   soundEnabled: document.querySelector("#soundEnabled"),
   notificationsEnabled: document.querySelector("#notificationsEnabled")
 };
@@ -73,6 +75,7 @@ function readSettingsForm() {
     sessionsBeforeLongBreak: elements.sessionsBeforeLongBreak.value,
     restMode: elements.restModeOptions.find(option => option.checked)?.value,
     autoStartNext: elements.autoStartNext.checked,
+    openAtLogin: elements.openAtLogin.checked,
     soundEnabled: elements.soundEnabled.checked,
     notificationsEnabled: elements.notificationsEnabled.checked
   });
@@ -86,6 +89,7 @@ function normalizeSettings(raw) {
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
     restMode: normalizeRestMode(raw.restMode),
     autoStartNext: Boolean(raw.autoStartNext),
+    openAtLogin: Boolean(raw.openAtLogin),
     soundEnabled: Boolean(raw.soundEnabled),
     notificationsEnabled: Boolean(raw.notificationsEnabled)
   };
@@ -124,6 +128,7 @@ function renderSettings(settings) {
     option.checked = option.value === normalizeRestMode(settings.restMode);
   });
   elements.autoStartNext.checked = settings.autoStartNext;
+  elements.openAtLogin.checked = settings.openAtLogin;
   elements.soundEnabled.checked = settings.soundEnabled;
   elements.notificationsEnabled.checked = settings.notificationsEnabled;
 
@@ -134,6 +139,7 @@ function renderSettings(settings) {
     elements.longBreakMinutes,
     elements.sessionsBeforeLongBreak,
     elements.autoStartNext,
+    elements.openAtLogin,
     elements.soundEnabled,
     elements.notificationsEnabled
   ].forEach(element => {

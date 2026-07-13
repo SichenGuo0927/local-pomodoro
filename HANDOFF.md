@@ -3,12 +3,12 @@
 ## Status
 
 - Product: minimal macOS Pomodoro timer.
-- Current app version: `0.2.6`.
+- Current app version: `0.3.0`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
 - Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 - Public-facing documentation is in `README.md`; version history is in `CHANGELOG.md`; this file is for handoff notes only.
-- End-user install path is the one-line `install.sh` command in `README.md`; it downloads the `v0.2.6` GitHub Release DMG.
+- End-user install path is the one-line `install.sh` command in `README.md`; it downloads the `v0.3.0` GitHub Release DMG.
 
 ## User-Approved Behavior
 
@@ -34,6 +34,19 @@
   - Stops at the next focus session.
   - Does not auto-start the next Pomodoro cycle.
   - Brings the main app window to the front so the user can choose whether to start the next cycle.
+- Rest mode:
+  - Relaxed mode keeps normal reminder-window behavior.
+  - Strict mode keeps the compact reminder window visible while blocking other interactions as far as Electron overlay windows allow.
+  - During strict rest, Settings is the only allowed escape path; switching to relaxed mode immediately removes blockers.
+- During rest, the desired visual order is app main view below the reminder window, and Settings above the reminder when open.
+
+## 0.3.0 Upgrade Notes
+
+- Added daily focus statistics.
+- Added focus auto-pause/auto-resume on screen lock, sleep, lid close, and system-away events.
+- Added break-end acknowledgement before the next focus countdown starts.
+- Added relaxed/strict rest modes with strict-mode input blockers and a Settings escape path.
+- Rest mode changes preserve the current phase and remaining time.
 
 ## 0.2.6 Upgrade Notes
 
@@ -90,7 +103,7 @@ The workspace was cleaned before handoff:
 - Removed old `dist/本地番茄钟-0.2.0` through `0.2.4` DMGs and blockmaps.
 - Removed `dist/builder-debug.yml`.
 - Removed root `.DS_Store`.
-- Latest local installer after this upgrade: `dist/本地番茄钟-0.2.6.dmg`.
+- Latest local installer after this upgrade: `dist/本地番茄钟-0.3.0.dmg`.
 
 Ignored local generated directories remain present on disk but are not tracked:
 

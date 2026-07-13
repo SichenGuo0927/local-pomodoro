@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
   longBreakMinutes: 15,
   sessionsBeforeLongBreak: 4,
   autoStartNext: true,
+  openAtLogin: false,
   restMode: "relaxed",
   soundEnabled: true,
   notificationsEnabled: true,
@@ -129,6 +130,7 @@ let lastTrayMenuClosedAt = 0;
 let dailyStats = {};
 let pendingFocusAutoResume = null;
 let breakEndAlertIntervalId = null;
+let lastDockBadge = null;
 const activeSoundTimers = new Set();
 const activeSoundPlayers = new Set();
 
@@ -143,7 +145,9 @@ const state = {
   awaitingBreakAcknowledgement: false
 };
 
-function createWindow() {
+function createWindow(options = {}) {
+  const { stealFocus = false } = options;
+
   mainWindow = new BrowserWindow({
     width: 460,
     height: 640,
@@ -161,7 +165,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
-  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.once("ready-to-show", () => showMainWindow({ stealFocus }));
   mainWindow.webContents.once("did-finish-load", broadcastState);
   mainWindow.on("show", () => {
     broadcastState();
@@ -303,6 +307,15 @@ function buildTrayMenu() {
       }
     },
     {
+      label: "开机自动启动",
+      type: "checkbox",
+      checked: settings.openAtLogin,
+      enabled: !strictRestLocked,
+      click: menuItem => {
+        updateSettings({ ...settings, openAtLogin: menuItem.checked }, { reset: false });
+      }
+    },
+    {
       label: "声音提醒",
       type: "checkbox",
       checked: settings.soundEnabled,
@@ -406,7 +419,7 @@ function showMainWindow(options = {}) {
   const { stealFocus = false } = options;
 
   if (!mainWindow || mainWindow.isDestroyed()) {
-    createWindow();
+    createWindow({ stealFocus });
     return;
   }
 
@@ -513,6 +526,13 @@ function resumeFocusAfterSystemAway() {
   }
 
   return startTimer({ autoResume: true });
+}
+
+function handleSystemReturn() {
+  resumeFocusAfterSystemAway();
+  if (settings.openAtLogin) {
+    showMainWindow({ stealFocus: true });
+  }
 }
 
 function clearPendingFocusAutoResume() {
@@ -662,6 +682,9 @@ function updateSettings(nextSettings, options = { reset: true }) {
   const wasStrictRestLocked = shouldShowRestBlockers();
   settings = normalizeSettings({ ...settings, ...nextSettings });
   saveSettings(settings);
+  if (previousSettings.openAtLogin !== settings.openAtLogin) {
+    syncOpenAtLoginSetting();
+  }
   const restModeChanged = previousSettings.restMode !== settings.restMode;
   const shouldResetTimer = options.reset && shouldResetTimerForSettingsChange(previousSettings, settings);
 
@@ -853,17 +876,25 @@ function showNoticeWindow() {
   }
 
   if (noticeWindow && !noticeWindow.isDestroyed()) {
-    noticeWindow.flashFrame(true);
+    flashNoticeWindow();
     raiseNoticeWindowAboveBlockers();
     if (!shouldShowRestBlockers() && shouldShowRestSurfaces()) {
       raiseRelaxedRestSurfaces({ reassert: true });
     }
-    setTimeout(() => {
-      if (noticeWindow && !noticeWindow.isDestroyed()) {
-        noticeWindow.flashFrame(false);
-      }
-    }, 3500);
   }
+}
+
+function flashNoticeWindow() {
+  if (process.platform === "darwin" || !noticeWindow || noticeWindow.isDestroyed()) {
+    return;
+  }
+
+  noticeWindow.flashFrame(true);
+  setTimeout(() => {
+    if (noticeWindow && !noticeWindow.isDestroyed()) {
+      noticeWindow.flashFrame(false);
+    }
+  }, 3500);
 }
 
 function syncRestBlockers(options = {}) {
@@ -1823,8 +1854,14 @@ function stopPowerSaveBlocker() {
 }
 
 function updateDockBadge(snapshot) {
-  if (process.platform === "darwin") {
-    app.dock.setBadge(snapshot.running ? String(Math.ceil(snapshot.remainingSeconds / 60)) : "");
+  if (process.platform !== "darwin" || !app.dock) {
+    return;
+  }
+
+  const nextBadge = snapshot.running ? String(Math.ceil(snapshot.remainingSeconds / 60)) : "";
+  if (nextBadge !== lastDockBadge) {
+    lastDockBadge = nextBadge;
+    app.dock.setBadge(nextBadge);
   }
 }
 
@@ -1848,6 +1885,12 @@ function loadSettings() {
 function saveSettings(nextSettings) {
   ensureUserDataDir();
   fs.writeFileSync(getSettingsPath(), JSON.stringify(nextSettings, null, 2));
+}
+
+function syncOpenAtLoginSetting() {
+  app.setLoginItemSettings({
+    openAtLogin: settings.openAtLogin
+  });
 }
 
 function loadDailyStats() {
@@ -1938,6 +1981,7 @@ function normalizeSettings(raw) {
     longBreakMinutes: clampInteger(raw.longBreakMinutes, 1, 120, DEFAULT_SETTINGS.longBreakMinutes),
     sessionsBeforeLongBreak: clampInteger(raw.sessionsBeforeLongBreak, 1, 12, DEFAULT_SETTINGS.sessionsBeforeLongBreak),
     autoStartNext: Boolean(raw.autoStartNext),
+    openAtLogin: Boolean(raw.openAtLogin),
     restMode: normalizeRestMode(raw.restMode),
     soundEnabled: Boolean(raw.soundEnabled),
     notificationsEnabled: Boolean(raw.notificationsEnabled),
@@ -2002,17 +2046,19 @@ ipcMain.handle("window:show", async () => showMainWindow());
 app.whenReady().then(() => {
   app.setName("本地番茄钟");
   settings = loadSettings();
+  syncOpenAtLoginSetting();
   dailyStats = loadDailyStats();
   state.totalSeconds = durationForPhase(state.phase);
   state.remainingSeconds = state.totalSeconds;
   powerMonitor.on("lock-screen", () => pauseFocusForSystemAway("lockScreen"));
   powerMonitor.on("suspend", () => pauseFocusForSystemAway("suspend"));
   powerMonitor.on("user-did-resign-active", () => pauseFocusForSystemAway("sessionInactive"));
-  powerMonitor.on("resume", resumeFocusAfterSystemAway);
-  powerMonitor.on("unlock-screen", resumeFocusAfterSystemAway);
-  powerMonitor.on("user-did-become-active", resumeFocusAfterSystemAway);
+  powerMonitor.on("resume", handleSystemReturn);
+  powerMonitor.on("unlock-screen", handleSystemReturn);
+  powerMonitor.on("user-did-become-active", handleSystemReturn);
   createTray();
-  createWindow();
+  const { wasOpenedAtLogin } = app.getLoginItemSettings();
+  createWindow({ stealFocus: wasOpenedAtLogin });
   screen.on("display-added", () => syncRestBlockers({ reassert: true }));
   screen.on("display-removed", () => syncRestBlockers({ reassert: true }));
   screen.on("display-metrics-changed", () => syncRestBlockers({ reassert: true }));
