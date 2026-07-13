@@ -1685,8 +1685,8 @@ function positionFloatingCountdownWindow() {
   floatingWindow.setBounds({
     width: FLOATING_WINDOW_SIZE.width,
     height: FLOATING_WINDOW_SIZE.height,
-    x: Math.round(workArea.x + workArea.width - FLOATING_WINDOW_SIZE.width - 16),
-    y: Math.round(workArea.y + 16)
+    x: Math.round(workArea.x + 16),
+    y: Math.round(workArea.y + workArea.height - FLOATING_WINDOW_SIZE.height - 16)
   });
 }
 

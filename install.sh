@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="SichenGuo0927/local-pomodoro"
-VERSION="0.3.0"
+VERSION="0.3.1"
 ASSET_NAME="本地番茄钟-${VERSION}.dmg"
 DMG_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET_NAME}"
 INSTALL_DIR="/Applications"

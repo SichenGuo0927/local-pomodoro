@@ -141,3 +141,18 @@ body {
   outline: 3px solid rgba(255, 248, 236, 0.72);
   outline-offset: 3px;
 }
+
+body[data-gesture="holding"] .tomato-face {
+  transform: scale(0.96);
+  background: rgba(91, 15, 12, 0.3);
+  transition: transform 700ms ease, background 180ms ease;
+}
+
+body[data-gesture="pause"] .tomato-face,
+body[data-gesture="start"] .tomato-face,
+body[data-gesture="skip"] .tomato-face,
+body[data-gesture="reset"] .tomato-face {
+  transform: scale(0.94);
+  filter: brightness(1.12);
+  transition: transform 90ms ease, filter 90ms ease;
+}

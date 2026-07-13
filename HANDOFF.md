@@ -3,12 +3,12 @@
 ## Status
 
 - Product: minimal macOS Pomodoro timer.
-- Current app version: `0.3.0`.
+- Current app version: `0.3.1`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
 - Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 - Public-facing documentation is in `README.md`; version history is in `CHANGELOG.md`; this file is for handoff notes only.
-- End-user install path is the one-line `install.sh` command in `README.md`; it downloads the `v0.3.0` GitHub Release DMG.
+- End-user install path is the one-line `install.sh` command in `README.md`; it downloads the `v0.3.1` GitHub Release DMG.
 
 ## User-Approved Behavior
 
@@ -39,6 +39,13 @@
   - Strict mode keeps the compact reminder window visible while blocking other interactions as far as Electron overlay windows allow.
   - During strict rest, Settings is the only allowed escape path; switching to relaxed mode immediately removes blockers.
 - During rest, the desired visual order is app main view below the reminder window, and Settings above the reminder when open.
+
+## 0.3.1 Upgrade Notes
+
+- The floating tomato opens in the lower-left corner of the primary display.
+- Two-finger click on the floating timer pauses the current phase.
+- A quick two-finger double-click skips the current phase without first triggering pause.
+- A two-finger long press stops and resets the current phase.
 
 ## 0.3.0 Upgrade Notes
 
@@ -75,6 +82,8 @@
 - `src/notice/`
   - Independent break reminder window.
   - Receives the same timer state over IPC as the main window.
+- `src/floating/`
+  - Floating tomato countdown UI and trackpad gesture handling.
 - `src/preload.js`
   - IPC bridge used by both windows.
 
@@ -103,7 +112,7 @@ The workspace was cleaned before handoff:
 - Removed old `dist/本地番茄钟-0.2.0` through `0.2.4` DMGs and blockmaps.
 - Removed `dist/builder-debug.yml`.
 - Removed root `.DS_Store`.
-- Latest local installer after this upgrade: `dist/本地番茄钟-0.3.0.dmg`.
+- Latest local installer after this upgrade: `dist/本地番茄钟-0.3.1.dmg`.
 
 Ignored local generated directories remain present on disk but are not tracked:
 

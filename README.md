@@ -2,7 +2,7 @@
 
 本地番茄钟是一个面向 macOS 的极简番茄钟应用。它使用 Electron 构建，计时状态由主进程维护，因此主窗口隐藏、关闭到后台或失焦后，计时仍会继续运行。
 
-当前版本：`0.3.0`
+当前版本：`0.3.1`
 
 ## 特性
 
@@ -13,6 +13,7 @@
   - 单击打开菜单，再单击关闭菜单。
   - 双击、双指按压或右键切换开始/暂停。
   - 菜单顶部显示当前循环进度。
+- 浮动番茄默认显示在桌面左下角；在中央时间面板上双指单击可暂停、双指快速双击可跳过、双指长按可停止并重置当前阶段。
 - 自动进入下一段：
   - 专注结束后可自动进入短休或长休。
   - 短休结束后可自动进入下一段专注。
@@ -43,7 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/SichenGuo0927/local-pomodoro/main/i
 
 也可以手动下载打包版本：
 
-[下载 v0.3.0 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/tag/v0.3.0)
+[下载 v0.3.1 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/tag/v0.3.1)
 
 安装包当前未签名，首次打开时 macOS 可能需要右键打开，或在系统设置中允许打开。
 
