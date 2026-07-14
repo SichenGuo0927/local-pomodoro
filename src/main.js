@@ -648,7 +648,7 @@ function beginBreakEndAcknowledgement(completedPhase) {
   }
 
   if (settings.soundEnabled) {
-    startBreakEndAlert();
+    startBreakEndAlert(completedPhase);
   }
 
   showNoticeWindow();
@@ -658,6 +658,7 @@ function createBreakEndNotice(completedPhase) {
   const completedTitle = PHASES[completedPhase].title;
   return {
     type: "breakEnd",
+    completedPhase,
     title: `${completedTitle}结束`,
     body: "准备好后，回到下一轮专注。",
     actionLabel: "回到专注",
@@ -695,8 +696,13 @@ function updateSettings(nextSettings, options = { reset: true }) {
   } else {
     if (state.awaitingBreakAcknowledgement && !settings.soundEnabled) {
       stopAllSounds();
-    } else if (state.awaitingBreakAcknowledgement && settings.soundEnabled && !breakEndAlertIntervalId) {
-      startBreakEndAlert();
+    } else if (state.awaitingBreakAcknowledgement && settings.soundEnabled) {
+      const completedBreakPhase = notice?.completedPhase;
+      const soundWasJustEnabled = !previousSettings.soundEnabled;
+      const shouldStartShortBreakAlert = completedBreakPhase !== "longBreak" && !breakEndAlertIntervalId;
+      if (soundWasJustEnabled || shouldStartShortBreakAlert) {
+        startBreakEndAlert(completedBreakPhase);
+      }
     }
     if (state.running && isBreakPhase(state.phase) && !notice) {
       showNoticeForPhase(state.phase);
@@ -742,9 +748,12 @@ function playTransitionSound(nextPhase) {
   playSoundSequence(sequence);
 }
 
-function startBreakEndAlert() {
+function startBreakEndAlert(completedPhase) {
   stopAllSounds();
   playBreakEndAlertPulse();
+  if (completedPhase === "longBreak") {
+    return;
+  }
   breakEndAlertIntervalId = setInterval(playBreakEndAlertPulse, BREAK_END_ALERT_REPEAT_MS);
 }
 
@@ -1574,7 +1583,6 @@ function syncFloatingCountdownWindow(snapshot = getSnapshot()) {
 
 function shouldShowFloatingCountdownWindow(snapshot) {
   return settings.countdownDisplayMode === "floatingWindow"
-    && snapshot.running
     && !hasBreakNotice(snapshot);
 }
 

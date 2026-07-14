@@ -30,7 +30,7 @@
   - Opens a separate notice window.
   - Notice says to drink water and move around.
 - Long break ends:
-  - Plays the focus sound sequence.
+  - Plays the focus sound sequence once without repeating it.
   - Stops at the next focus session.
   - Does not auto-start the next Pomodoro cycle.
   - Brings the main app window to the front so the user can choose whether to start the next cycle.
@@ -43,6 +43,7 @@
 ## 0.3.1 Upgrade Notes
 
 - The floating tomato opens in the lower-left corner of the primary display.
+- The floating tomato stays visible while the current phase is paused or reset.
 - Two-finger click on the floating timer pauses the current phase.
 - A quick two-finger double-click skips the current phase without first triggering pause.
 - A two-finger long press stops and resets the current phase.
