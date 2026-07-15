@@ -3,12 +3,12 @@
 ## Status
 
 - Product: minimal macOS Pomodoro timer.
-- Current app version: `0.3.1`.
+- Current source version: `0.3.2`.
 - Tech stack: Electron, plain HTML/CSS/JavaScript, pnpm.
 - Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 - Public-facing documentation is in `README.md`; version history is in `CHANGELOG.md`; this file is for handoff notes only.
-- End-user install path is the one-line `install.sh` command in `README.md`; it downloads the `v0.3.1` GitHub Release DMG.
+- End-user install path is the one-line `install.sh` command in `README.md`; until a `v0.3.2` Release is published, it continues to download the latest available `v0.3.1` GitHub Release DMG.
 
 ## User-Approved Behavior
 
@@ -29,16 +29,25 @@
   - Plays the rest sound sequence.
   - Opens a separate notice window.
   - Notice says to drink water and move around.
+  - The notice window may be closed directly during the long break.
 - Long break ends:
   - Plays the focus sound sequence once without repeating it.
   - Stops at the next focus session.
   - Does not auto-start the next Pomodoro cycle.
   - Brings the main app window to the front so the user can choose whether to start the next cycle.
+  - The separate “return to focus” notice may be closed without starting the next cycle.
 - Rest mode:
   - Relaxed mode keeps normal reminder-window behavior.
   - Strict mode keeps the compact reminder window visible while blocking other interactions as far as Electron overlay windows allow.
   - During strict rest, Settings is the only allowed escape path; switching to relaxed mode immediately removes blockers.
 - During rest, the desired visual order is app main view below the reminder window, and Settings above the reminder when open.
+
+## 0.3.2 Upgrade Notes
+
+- Fixed the long-break notice close policy: the notice can be closed during a long break and after long-break completion while waiting to return to focus.
+- Closing the long-break completion notice does not auto-start the next focus session.
+- Added a reminder after a manually paused timer remains idle for one minute and the user returns.
+- Login startup in floating-window mode now shows only the floating tomato instead of also opening the main window.
 
 ## 0.3.1 Upgrade Notes
 

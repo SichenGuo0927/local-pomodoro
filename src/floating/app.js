@@ -13,6 +13,8 @@ let secondaryPress = null;
 let pendingSecondaryClickTimer = null;
 let lastSecondaryReleaseAt = 0;
 let feedbackTimer = null;
+let idleReminderTimer = null;
+let lastPausedIdleReminderSequence = 0;
 const elements = {
   openButton: document.querySelector("#openButton"),
   phaseLabel: document.querySelector("#phaseLabel"),
@@ -157,10 +159,29 @@ function setGestureFeedback(gesture, options = {}) {
 }
 
 function render(snapshot) {
+  const reminderSequence = Number(snapshot.pausedIdleReminderSequence) || 0;
+  if (reminderSequence > lastPausedIdleReminderSequence) {
+    flashPausedIdleReminder();
+  }
+  lastPausedIdleReminderSequence = Math.max(lastPausedIdleReminderSequence, reminderSequence);
   document.body.dataset.phase = snapshot.phase;
   document.title = `${formatTime(snapshot.remainingSeconds)} - ${snapshot.phaseTitle}`;
   elements.phaseLabel.textContent = PHASES[snapshot.phase] || snapshot.phaseTitle;
   elements.timeDisplay.textContent = formatTime(snapshot.remainingSeconds);
+}
+
+function flashPausedIdleReminder() {
+  if (idleReminderTimer !== null) {
+    clearTimeout(idleReminderTimer);
+  }
+
+  delete document.body.dataset.idleReminder;
+  void elements.openButton.offsetWidth;
+  document.body.dataset.idleReminder = "true";
+  idleReminderTimer = setTimeout(() => {
+    idleReminderTimer = null;
+    delete document.body.dataset.idleReminder;
+  }, 2400);
 }
 
 function showMainWindow() {

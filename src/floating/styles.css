@@ -156,3 +156,27 @@ body[data-gesture="reset"] .tomato-face {
   filter: brightness(1.12);
   transition: transform 90ms ease, filter 90ms ease;
 }
+
+body[data-idle-reminder="true"] .floating-timer {
+  animation: paused-idle-reminder-flash 2.2s ease-in-out;
+}
+
+@keyframes paused-idle-reminder-flash {
+  0%, 100% {
+    opacity: 1;
+    filter: brightness(1);
+    transform: scale(1);
+  }
+
+  12%, 38%, 64% {
+    opacity: 0.24;
+    filter: brightness(1.45);
+    transform: scale(0.94);
+  }
+
+  25%, 51%, 77% {
+    opacity: 1;
+    filter: brightness(1.18);
+    transform: scale(1.06);
+  }
+}

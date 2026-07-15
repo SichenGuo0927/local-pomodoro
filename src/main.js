@@ -16,6 +16,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
+const { canCloseNoticeWindow } = require("./notice-close-policy");
 
 const DEFAULT_SETTINGS = {
   focusMinutes: 20,
@@ -109,6 +110,8 @@ const SOUND_SEQUENCES = {
   ]
 };
 const BREAK_END_ALERT_REPEAT_MS = 3600;
+const PAUSED_IDLE_REMINDER_THRESHOLD_SECONDS = 60;
+const PAUSED_IDLE_REMINDER_POLL_MS = 1000;
 
 let mainWindow;
 let noticeWindow;
@@ -131,6 +134,12 @@ let dailyStats = {};
 let pendingFocusAutoResume = null;
 let breakEndAlertIntervalId = null;
 let lastDockBadge = null;
+let pausedIdleReminderIntervalId = null;
+let pausedIdleReminderEligible = false;
+let pausedIdleReminderArmed = false;
+let pausedIdleReminderEnabledAt = null;
+let pausedSystemAwayStartedAt = null;
+let pausedIdleReminderSequence = 0;
 const activeSoundTimers = new Set();
 const activeSoundPlayers = new Set();
 
@@ -146,7 +155,7 @@ const state = {
 };
 
 function createWindow(options = {}) {
-  const { stealFocus = false } = options;
+  const { stealFocus = false, showOnReady = true } = options;
 
   mainWindow = new BrowserWindow({
     width: 460,
@@ -165,7 +174,11 @@ function createWindow(options = {}) {
   });
 
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
-  mainWindow.once("ready-to-show", () => showMainWindow({ stealFocus }));
+  mainWindow.once("ready-to-show", () => {
+    if (showOnReady) {
+      showMainWindow({ stealFocus });
+    }
+  });
   mainWindow.webContents.once("did-finish-load", broadcastState);
   mainWindow.on("show", () => {
     broadcastState();
@@ -461,6 +474,7 @@ function startTimer(options = {}) {
     return getSnapshot();
   }
 
+  clearPausedIdleReminder();
   if (state.phase === "focus") {
     clearNotice();
   }
@@ -492,6 +506,11 @@ function pauseTimer(options = {}) {
   state.remainingSeconds = secondsUntilEnd();
   state.running = false;
   state.endsAt = null;
+  if (keepAutoResume) {
+    clearPausedIdleReminder();
+  } else {
+    enablePausedIdleReminder();
+  }
   stopPowerSaveBlocker();
   syncRestBlockers();
   broadcastState();
@@ -530,17 +549,111 @@ function resumeFocusAfterSystemAway() {
 
 function handleSystemReturn() {
   resumeFocusAfterSystemAway();
-  if (settings.openAtLogin) {
-    showMainWindow({ stealFocus: true });
-  }
+  remindAfterPausedSystemAway();
 }
 
 function clearPendingFocusAutoResume() {
   pendingFocusAutoResume = null;
 }
 
+function enablePausedIdleReminder() {
+  pausedIdleReminderEligible = true;
+  pausedIdleReminderArmed = false;
+  pausedIdleReminderEnabledAt = Date.now();
+  pausedSystemAwayStartedAt = null;
+}
+
+function clearPausedIdleReminder() {
+  pausedIdleReminderEligible = false;
+  pausedIdleReminderArmed = false;
+  pausedIdleReminderEnabledAt = null;
+  pausedSystemAwayStartedAt = null;
+}
+
+function startPausedIdleReminderMonitor() {
+  if (pausedIdleReminderIntervalId !== null) {
+    return;
+  }
+
+  pausedIdleReminderIntervalId = setInterval(checkPausedIdleReminder, PAUSED_IDLE_REMINDER_POLL_MS);
+}
+
+function stopPausedIdleReminderMonitor() {
+  if (pausedIdleReminderIntervalId === null) {
+    return;
+  }
+
+  clearInterval(pausedIdleReminderIntervalId);
+  pausedIdleReminderIntervalId = null;
+}
+
+function checkPausedIdleReminder() {
+  if (!pausedIdleReminderEligible || state.running || state.awaitingBreakAcknowledgement) {
+    pausedIdleReminderArmed = false;
+    return;
+  }
+
+  let idleSeconds;
+  try {
+    idleSeconds = powerMonitor.getSystemIdleTime();
+  } catch {
+    return;
+  }
+
+  if (idleSeconds >= PAUSED_IDLE_REMINDER_THRESHOLD_SECONDS) {
+    pausedIdleReminderArmed = true;
+    return;
+  }
+
+  if (pausedIdleReminderArmed) {
+    showPausedIdleReminder();
+  }
+}
+
+function notePausedSystemAway() {
+  if (!pausedIdleReminderEligible || state.running || pausedSystemAwayStartedAt !== null) {
+    return;
+  }
+
+  let idleStartedAt = Date.now();
+  try {
+    idleStartedAt -= powerMonitor.getSystemIdleTime() * 1000;
+  } catch {
+    // Fall back to the system-away event time when idle duration is unavailable.
+  }
+  pausedSystemAwayStartedAt = Math.max(pausedIdleReminderEnabledAt || 0, idleStartedAt);
+}
+
+function remindAfterPausedSystemAway() {
+  if (pausedSystemAwayStartedAt === null) {
+    return;
+  }
+
+  const awayDurationMs = Date.now() - pausedSystemAwayStartedAt;
+  pausedSystemAwayStartedAt = null;
+  if (awayDurationMs >= PAUSED_IDLE_REMINDER_THRESHOLD_SECONDS * 1000) {
+    showPausedIdleReminder();
+  }
+}
+
+function showPausedIdleReminder() {
+  if (!pausedIdleReminderEligible || state.running || state.awaitingBreakAcknowledgement) {
+    return;
+  }
+
+  clearPausedIdleReminder();
+  if (settings.countdownDisplayMode === "floatingWindow") {
+    pausedIdleReminderSequence += 1;
+    broadcastState();
+    return;
+  }
+
+  showMainWindow({ stealFocus: true });
+}
+
 function resetCurrentPhase() {
   clearPendingFocusAutoResume();
+  clearPausedIdleReminder();
   clearNotice();
   clearInterval(state.intervalId);
   state.intervalId = null;
@@ -566,6 +679,7 @@ function tick() {
 
 function completePhase({ manual }) {
   clearPendingFocusAutoResume();
+  clearPausedIdleReminder();
   if (state.awaitingBreakAcknowledgement) {
     return acknowledgeBreakEnd();
   }
@@ -683,7 +797,8 @@ function updateSettings(nextSettings, options = { reset: true }) {
   const wasStrictRestLocked = shouldShowRestBlockers();
   settings = normalizeSettings({ ...settings, ...nextSettings });
   saveSettings(settings);
-  if (previousSettings.openAtLogin !== settings.openAtLogin) {
+  if (previousSettings.openAtLogin !== settings.openAtLogin
+    || previousSettings.countdownDisplayMode !== settings.countdownDisplayMode) {
     syncOpenAtLoginSetting();
   }
   const restModeChanged = previousSettings.restMode !== settings.restMode;
@@ -873,7 +988,7 @@ function showNoticeWindow() {
     noticeWindow.on("show", () => scheduleRestLayerReassertion());
     noticeWindow.on("focus", () => scheduleRestLayerReassertion({ immediate: true }));
     noticeWindow.on("close", event => {
-      if (isQuitting || !notice) {
+      if (isQuitting || !notice || canCloseNoticeWindow({ phase: state.phase, notice })) {
         return;
       }
       event.preventDefault();
@@ -1812,6 +1927,7 @@ function getSnapshot() {
     nextPhaseLabel: getNextPhaseLabel(),
     focusNumber: Math.min(state.completedFocusInCycle + 1, settings.sessionsBeforeLongBreak),
     todayStats: getTodayStats(),
+    pausedIdleReminderSequence,
     notice,
     settings
   };
@@ -1897,7 +2013,8 @@ function saveSettings(nextSettings) {
 
 function syncOpenAtLoginSetting() {
   app.setLoginItemSettings({
-    openAtLogin: settings.openAtLogin
+    openAtLogin: settings.openAtLogin,
+    openAsHidden: settings.openAtLogin && settings.countdownDisplayMode === "floatingWindow"
   });
 }
 
@@ -2054,19 +2171,37 @@ ipcMain.handle("window:show", async () => showMainWindow());
 app.whenReady().then(() => {
   app.setName("本地番茄钟");
   settings = loadSettings();
+  const { wasOpenedAtLogin } = app.getLoginItemSettings();
   syncOpenAtLoginSetting();
   dailyStats = loadDailyStats();
   state.totalSeconds = durationForPhase(state.phase);
   state.remainingSeconds = state.totalSeconds;
-  powerMonitor.on("lock-screen", () => pauseFocusForSystemAway("lockScreen"));
-  powerMonitor.on("suspend", () => pauseFocusForSystemAway("suspend"));
-  powerMonitor.on("user-did-resign-active", () => pauseFocusForSystemAway("sessionInactive"));
+  powerMonitor.on("lock-screen", () => {
+    notePausedSystemAway();
+    pauseFocusForSystemAway("lockScreen");
+  });
+  powerMonitor.on("suspend", () => {
+    notePausedSystemAway();
+    pauseFocusForSystemAway("suspend");
+  });
+  powerMonitor.on("user-did-resign-active", () => {
+    notePausedSystemAway();
+    pauseFocusForSystemAway("sessionInactive");
+  });
   powerMonitor.on("resume", handleSystemReturn);
   powerMonitor.on("unlock-screen", handleSystemReturn);
   powerMonitor.on("user-did-become-active", handleSystemReturn);
+  startPausedIdleReminderMonitor();
   createTray();
-  const { wasOpenedAtLogin } = app.getLoginItemSettings();
-  createWindow({ stealFocus: wasOpenedAtLogin });
+  const startWithFloatingWindowOnly = wasOpenedAtLogin
+    && settings.countdownDisplayMode === "floatingWindow";
+  createWindow({
+    stealFocus: wasOpenedAtLogin && !startWithFloatingWindowOnly,
+    showOnReady: !startWithFloatingWindowOnly
+  });
+  if (startWithFloatingWindowOnly) {
+    syncFloatingCountdownWindow();
+  }
   screen.on("display-added", () => syncRestBlockers({ reassert: true }));
   screen.on("display-removed", () => syncRestBlockers({ reassert: true }));
   screen.on("display-metrics-changed", () => syncRestBlockers({ reassert: true }));
@@ -2076,6 +2211,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  stopPausedIdleReminderMonitor();
   stopPowerSaveBlocker();
   stopAllSounds();
   if (pendingRestLayerReassertion !== null) {
