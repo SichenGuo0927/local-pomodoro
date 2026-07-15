@@ -37,8 +37,8 @@
 
 当前安装包适用于 Apple Silicon Mac（M 系列芯片）。
 
-1. [直接下载本地番茄钟 v0.3.2 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/download/v0.3.2/%E6%9C%AC%E5%9C%B0%E7%95%AA%E8%8C%84%E9%92%9F-0.3.2.dmg)。
-2. 双击下载的 `本地番茄钟-0.3.2.dmg`。
+1. [直接下载本地番茄钟 v0.3.2 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/download/v0.3.2/local-pomodoro-0.3.2-arm64.dmg)。
+2. 双击下载的 `local-pomodoro-0.3.2-arm64.dmg`。
 3. 将“本地番茄钟”拖到安装窗口中的 `Applications` 文件夹。
 4. 从“应用程序”文件夹打开“本地番茄钟”。
 
