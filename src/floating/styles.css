@@ -161,6 +161,11 @@ body[data-idle-reminder="true"] .floating-timer {
   animation: paused-idle-reminder-flash 2.2s ease-in-out;
 }
 
+body[data-idle-walking="true"] .floating-timer {
+  transform-origin: 50% 86%;
+  animation: paused-idle-reminder-walk 3.6s ease-in-out both;
+}
+
 @keyframes paused-idle-reminder-flash {
   0%, 100% {
     opacity: 1;
@@ -178,5 +183,23 @@ body[data-idle-reminder="true"] .floating-timer {
     opacity: 1;
     filter: brightness(1.18);
     transform: scale(1.06);
+  }
+}
+
+@keyframes paused-idle-reminder-walk {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  5%, 25%, 45%, 65%, 85% {
+    transform: translateY(-4px) rotate(-7deg) scale(1.02);
+  }
+
+  15%, 35%, 55%, 75%, 95% {
+    transform: translateY(-4px) rotate(7deg) scale(1.02);
+  }
+
+  10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90% {
+    transform: translateY(0) rotate(0deg) scale(1);
   }
 }

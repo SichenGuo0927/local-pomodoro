@@ -107,11 +107,20 @@ const SOUND_SEQUENCES = {
   focus: [
     { name: "Hero.aiff", delay: 0, volume: 1.6 },
     { name: "Ping.aiff", delay: 620, volume: 1.6 }
+  ],
+  pausedReturn: [
+    { name: "Tink.aiff", delay: 0, volume: 1.55 },
+    { name: "Tink.aiff", delay: 420, volume: 1.55 },
+    { name: "Tink.aiff", delay: 840, volume: 1.55 }
   ]
 };
 const BREAK_END_ALERT_REPEAT_MS = 3600;
 const PAUSED_IDLE_REMINDER_THRESHOLD_SECONDS = 60;
 const PAUSED_IDLE_REMINDER_POLL_MS = 1000;
+const PAUSED_IDLE_CONTINUED_ACTIVITY_MS = 15000;
+const PAUSED_IDLE_ACTIVE_INPUT_WINDOW_SECONDS = 3;
+const FLOATING_REMINDER_WALK_DURATION_MS = 3600;
+const FLOATING_REMINDER_MOVE_INTERVAL_MS = 33;
 
 let mainWindow;
 let noticeWindow;
@@ -140,6 +149,12 @@ let pausedIdleReminderArmed = false;
 let pausedIdleReminderEnabledAt = null;
 let pausedSystemAwayStartedAt = null;
 let pausedIdleReminderSequence = 0;
+let pausedIdleReminderFollowUpActive = false;
+let pausedIdleReminderActiveMs = 0;
+let pausedIdleReminderLastCheckAt = null;
+let pausedIdleReminderWalking = false;
+let floatingReminderMoveIntervalId = null;
+let floatingReminderOriginBounds = null;
 const activeSoundTimers = new Set();
 const activeSoundPlayers = new Set();
 
@@ -557,6 +572,7 @@ function clearPendingFocusAutoResume() {
 }
 
 function enablePausedIdleReminder() {
+  clearPausedIdleReminderFollowUp();
   pausedIdleReminderEligible = true;
   pausedIdleReminderArmed = false;
   pausedIdleReminderEnabledAt = Date.now();
@@ -564,10 +580,29 @@ function enablePausedIdleReminder() {
 }
 
 function clearPausedIdleReminder() {
+  clearPausedIdleReminderDetection();
+  clearPausedIdleReminderFollowUp();
+}
+
+function clearPausedIdleReminderDetection() {
   pausedIdleReminderEligible = false;
   pausedIdleReminderArmed = false;
   pausedIdleReminderEnabledAt = null;
   pausedSystemAwayStartedAt = null;
+}
+
+function beginPausedIdleReminderFollowUp() {
+  pausedIdleReminderFollowUpActive = true;
+  pausedIdleReminderActiveMs = 0;
+  pausedIdleReminderLastCheckAt = Date.now();
+}
+
+function clearPausedIdleReminderFollowUp(options = {}) {
+  const { restorePosition = true } = options;
+  pausedIdleReminderFollowUpActive = false;
+  pausedIdleReminderActiveMs = 0;
+  pausedIdleReminderLastCheckAt = null;
+  stopFloatingReminderWalk({ restorePosition });
 }
 
 function startPausedIdleReminderMonitor() {
@@ -588,8 +623,7 @@ function stopPausedIdleReminderMonitor() {
 }
 
 function checkPausedIdleReminder() {
-  if (!pausedIdleReminderEligible || state.running || state.awaitingBreakAcknowledgement) {
-    pausedIdleReminderArmed = false;
+  if (!pausedIdleReminderEligible && !pausedIdleReminderFollowUpActive) {
     return;
   }
 
@@ -600,6 +634,12 @@ function checkPausedIdleReminder() {
     return;
   }
 
+  checkPausedIdleReminderFollowUp(idleSeconds);
+  if (!pausedIdleReminderEligible || state.running || state.awaitingBreakAcknowledgement) {
+    pausedIdleReminderArmed = false;
+    return;
+  }
+
   if (idleSeconds >= PAUSED_IDLE_REMINDER_THRESHOLD_SECONDS) {
     pausedIdleReminderArmed = true;
     return;
@@ -607,6 +647,40 @@ function checkPausedIdleReminder() {
 
   if (pausedIdleReminderArmed) {
     showPausedIdleReminder();
+  }
+}
+
+function checkPausedIdleReminderFollowUp(idleSeconds) {
+  if (!pausedIdleReminderFollowUpActive) {
+    return;
+  }
+
+  if (state.running
+    || state.awaitingBreakAcknowledgement
+    || settings.countdownDisplayMode !== "floatingWindow") {
+    clearPausedIdleReminderFollowUp();
+    return;
+  }
+
+  if (pausedIdleReminderWalking) {
+    return;
+  }
+
+  const now = Date.now();
+  const elapsedMs = Math.min(
+    Math.max(now - (pausedIdleReminderLastCheckAt || now), 0),
+    PAUSED_IDLE_REMINDER_POLL_MS * 2
+  );
+  pausedIdleReminderLastCheckAt = now;
+
+  if (idleSeconds <= PAUSED_IDLE_ACTIVE_INPUT_WINDOW_SECONDS) {
+    pausedIdleReminderActiveMs += elapsedMs;
+  } else {
+    pausedIdleReminderActiveMs = 0;
+  }
+
+  if (pausedIdleReminderActiveMs >= PAUSED_IDLE_CONTINUED_ACTIVITY_MS) {
+    startFloatingReminderWalk();
   }
 }
 
@@ -641,14 +715,100 @@ function showPausedIdleReminder() {
     return;
   }
 
-  clearPausedIdleReminder();
-  if (settings.countdownDisplayMode === "floatingWindow") {
+  clearPausedIdleReminderDetection();
+  if (settings.soundEnabled) {
+    playSoundSequence(SOUND_SEQUENCES.pausedReturn);
+  }
+
+  const snapshot = getSnapshot();
+  if (shouldShowFloatingCountdownWindow(snapshot)) {
     pausedIdleReminderSequence += 1;
+    beginPausedIdleReminderFollowUp();
     broadcastState();
     return;
   }
 
   showMainWindow({ stealFocus: true });
+}
+
+function startFloatingReminderWalk() {
+  if (pausedIdleReminderWalking
+    || state.running
+    || settings.countdownDisplayMode !== "floatingWindow"
+    || !floatingWindow
+    || floatingWindow.isDestroyed()) {
+    return;
+  }
+
+  stopFloatingReminderWalk({ restorePosition: false });
+  const originBounds = floatingWindow.getBounds();
+  const { workArea } = screen.getDisplayMatching(originBounds);
+  const targetBounds = {
+    width: originBounds.width,
+    height: originBounds.height,
+    x: Math.round(workArea.x + (workArea.width - originBounds.width) / 2),
+    y: Math.round(workArea.y + (workArea.height - originBounds.height) / 2)
+  };
+
+  floatingReminderOriginBounds = originBounds;
+  pausedIdleReminderWalking = true;
+  pausedIdleReminderFollowUpActive = false;
+  pausedIdleReminderActiveMs = 0;
+  pausedIdleReminderLastCheckAt = null;
+  broadcastState();
+
+  const startedAt = Date.now();
+  floatingReminderMoveIntervalId = setInterval(() => {
+    if (!floatingWindow
+      || floatingWindow.isDestroyed()
+      || state.running
+      || settings.countdownDisplayMode !== "floatingWindow") {
+      stopFloatingReminderWalk({ restorePosition: !state.running });
+      return;
+    }
+
+    const progress = Math.min((Date.now() - startedAt) / FLOATING_REMINDER_WALK_DURATION_MS, 1);
+    const easedProgress = easeInOutCubic(progress);
+    const verticalStep = progress < 1
+      ? -Math.abs(Math.sin(progress * Math.PI * 10)) * 7
+      : 0;
+    floatingWindow.setBounds({
+      width: originBounds.width,
+      height: originBounds.height,
+      x: Math.round(originBounds.x + (targetBounds.x - originBounds.x) * easedProgress),
+      y: Math.round(originBounds.y + (targetBounds.y - originBounds.y) * easedProgress + verticalStep)
+    });
+
+    if (progress >= 1) {
+      clearInterval(floatingReminderMoveIntervalId);
+      floatingReminderMoveIntervalId = null;
+      floatingWindow.setBounds(targetBounds);
+    }
+  }, FLOATING_REMINDER_MOVE_INTERVAL_MS);
+}
+
+function stopFloatingReminderWalk(options = {}) {
+  const { restorePosition = true } = options;
+  if (floatingReminderMoveIntervalId !== null) {
+    clearInterval(floatingReminderMoveIntervalId);
+    floatingReminderMoveIntervalId = null;
+  }
+
+  if (restorePosition
+    && floatingReminderOriginBounds
+    && floatingWindow
+    && !floatingWindow.isDestroyed()) {
+    floatingWindow.setBounds(floatingReminderOriginBounds);
+  }
+
+  floatingReminderOriginBounds = null;
+  pausedIdleReminderWalking = false;
+}
+
+function easeInOutCubic(progress) {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 }
 
 function resetCurrentPhase() {
@@ -797,6 +957,10 @@ function updateSettings(nextSettings, options = { reset: true }) {
   const wasStrictRestLocked = shouldShowRestBlockers();
   settings = normalizeSettings({ ...settings, ...nextSettings });
   saveSettings(settings);
+  if (previousSettings.countdownDisplayMode !== settings.countdownDisplayMode
+    && settings.countdownDisplayMode !== "floatingWindow") {
+    clearPausedIdleReminderFollowUp();
+  }
   if (previousSettings.openAtLogin !== settings.openAtLogin
     || previousSettings.countdownDisplayMode !== settings.countdownDisplayMode) {
     syncOpenAtLoginSetting();
@@ -1928,6 +2092,7 @@ function getSnapshot() {
     focusNumber: Math.min(state.completedFocusInCycle + 1, settings.sessionsBeforeLongBreak),
     todayStats: getTodayStats(),
     pausedIdleReminderSequence,
+    pausedIdleReminderWalking,
     notice,
     settings
   };
@@ -2212,6 +2377,7 @@ app.whenReady().then(() => {
 app.on("before-quit", () => {
   isQuitting = true;
   stopPausedIdleReminderMonitor();
+  stopFloatingReminderWalk({ restorePosition: false });
   stopPowerSaveBlocker();
   stopAllSounds();
   if (pendingRestLayerReassertion !== null) {

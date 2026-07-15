@@ -164,6 +164,11 @@ function render(snapshot) {
     flashPausedIdleReminder();
   }
   lastPausedIdleReminderSequence = Math.max(lastPausedIdleReminderSequence, reminderSequence);
+  if (snapshot.pausedIdleReminderWalking) {
+    document.body.dataset.idleWalking = "true";
+  } else {
+    delete document.body.dataset.idleWalking;
+  }
   document.body.dataset.phase = snapshot.phase;
   document.title = `${formatTime(snapshot.remainingSeconds)} - ${snapshot.phaseTitle}`;
   elements.phaseLabel.textContent = PHASES[snapshot.phase] || snapshot.phaseTitle;
