@@ -8,7 +8,7 @@
 - Current branch: `main`.
 - GitHub remote: `https://github.com/SichenGuo0927/local-pomodoro`.
 - Public-facing documentation is in `README.md`; version history is in `CHANGELOG.md`; this file is for handoff notes only.
-- End-user install path is the one-line `install.sh` command in `README.md`; until a `v0.3.2` Release is published, it continues to download the latest available `v0.3.1` GitHub Release DMG.
+- End-user install path is the `v0.3.2` GitHub Release DMG linked from `README.md`; `install.sh` downloads the same release for terminal users.
 
 ## User-Approved Behavior
 

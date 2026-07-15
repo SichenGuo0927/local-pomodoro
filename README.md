@@ -2,7 +2,7 @@
 
 本地番茄钟是一个面向 macOS 的极简番茄钟应用。它使用 Electron 构建，计时状态由主进程维护，因此主窗口隐藏、关闭到后台或失焦后，计时仍会继续运行。
 
-当前源码版本：`0.3.2`（最新发布安装包：`0.3.1`）
+当前源码版本与最新安装包：`0.3.2`
 
 ## 特性
 
@@ -33,21 +33,30 @@
 - 短休结束后会持续提醒，直到用户回到桌面确认后再开始下一轮专注；长休结束只响铃一次，并停在下一轮专注等待确认。
 - 休息模式支持“轻松模式”和“强制模式”；强制模式会限制休息期间的其他操作，并保留设置入口用于切回轻松模式。
 
-## 快速安装
+## 下载与安装
 
-推荐直接安装打包版。复制下面一行命令到终端执行即可：
+当前安装包适用于 Apple Silicon Mac（M 系列芯片）。
+
+1. [直接下载本地番茄钟 v0.3.2 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/download/v0.3.2/%E6%9C%AC%E5%9C%B0%E7%95%AA%E8%8C%84%E9%92%9F-0.3.2.dmg)。
+2. 双击下载的 `本地番茄钟-0.3.2.dmg`。
+3. 将“本地番茄钟”拖到安装窗口中的 `Applications` 文件夹。
+4. 从“应用程序”文件夹打开“本地番茄钟”。
+
+### 首次打开
+
+当前试用版尚未使用 Apple Developer ID 签名和公证，因此全新的 Mac 会在第一次打开时显示安全提示。请先尝试打开一次，然后进入：
+
+`系统设置 → 隐私与安全性 → 安全性 → 仍要打开 → 打开`
+
+只需要操作一次；之后可以像普通 App 一样双击使用。请只从本仓库的 GitHub Release 下载，并可参考 [Apple 官方的未公证 App 打开说明](https://support.apple.com/102445)。
+
+熟悉终端的用户也可以使用一行安装命令：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/SichenGuo0927/local-pomodoro/main/install.sh | bash
 ```
 
 这条命令会下载 GitHub Release 中的 DMG，挂载安装包，并把 `本地番茄钟.app` 安装到 `/Applications`。如果 `/Applications` 需要管理员权限，脚本会请求 `sudo`。
-
-也可以手动下载打包版本：
-
-[下载 v0.3.1 DMG](https://github.com/SichenGuo0927/local-pomodoro/releases/tag/v0.3.1)
-
-安装包当前未签名，首次打开时 macOS 可能需要右键打开，或在系统设置中允许打开。
 
 ## 从源码运行
 
